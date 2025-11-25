@@ -1,4 +1,4 @@
-name: Deploy a VPS en Azure
+name: Deploy a VPS en Azure version 2
 
 on:
   push:
