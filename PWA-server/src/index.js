@@ -15,6 +15,9 @@ app.get("/", (req, res) => {
   res.send("Servidor corriendo en la raíz /");
 });
 
+app.get("/ping/example", (req, res) => {
+  res.json({ message: "Despliegue automático OK para realizar pruebas" });
+});
 
 // Ruta protegida de prueba
 app.get("/api/protected", verifyToken, (req, res) => {
