@@ -50,13 +50,14 @@ jobs:
         run: ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps"
 
       - name: Verify Blue-Green deployment
-        run: ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-          STATUS=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1)
-          echo 'HTTP response code:' \$STATUS
-          if [ \$STATUS -ne 200 ]; then
-            echo '⚠️ Despliegue fallido!'
-            exit 1
-          else
-            echo '✅ Despliegue OK'
-          fi
-        "
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s <<'EOF'
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1)
+            echo "HTTP response code: $STATUS"
+            if [ $STATUS -ne 200 ]; then
+              echo "Despliegue fallido!"
+              exit 1
+            else
+              echo "Despliegue OK"
+            fi
+          EOF
