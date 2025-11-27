@@ -26,7 +26,7 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
-      - name: Ejecutar deploy en VPS
+      - name: Ejecutar deploy blue-green en VPS
         run: |
           ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             set -e
@@ -39,10 +39,15 @@ jobs:
             # Determinar color activo
             COLOR=\$( [ -f nginx/ACTIVE ] && grep -q blue nginx/ACTIVE && echo green || echo blue )
             echo 'Desplegando color:' \$COLOR
-          
-            docker compose -p app down
+
+            # ⚡ Eliminar contenedores viejos para evitar conflictos
+            docker rm -f vps-g-app-blue vps-g-app-green 2>/dev/null || true
+
+            # Levantar los contenedores nuevos
+            docker compose -p app down || true
             docker compose -p app up -d --build --remove-orphans
-            
+
+            # Ejecutar script blue-green para actualizar NGINX
             bash PWA-server/deploy_blue_green.sh \$COLOR
           "
 
