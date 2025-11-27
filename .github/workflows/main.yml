@@ -36,7 +36,7 @@ jobs:
             export DATABASE_URL='${{ secrets.DATABASE_URL }}'
             export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}'
 
-            # ⚡ Asegurar que el directorio nginx y el archivo ACTIVE existen y tienen permisos
+            # Asegurar que el directorio nginx y el archivo ACTIVE existen
             mkdir -p nginx
             touch nginx/ACTIVE
             chmod 664 nginx/ACTIVE
@@ -45,7 +45,7 @@ jobs:
             COLOR=\$(grep -q blue nginx/ACTIVE && echo green || echo blue)
             echo 'Desplegando color:' \$COLOR
 
-            # ⚡ Eliminar contenedores viejos para evitar conflictos
+            # Eliminar contenedores viejos
             docker rm -f vps-g-app-blue vps-g-app-green 2>/dev/null || true
 
             # Levantar los contenedores nuevos
@@ -56,32 +56,31 @@ jobs:
             bash PWA-server/deploy_blue_green.sh \$COLOR
           "
 
-
       - name: Listar contenedores en VPS
         run: ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps"
 
       - name: Verificar despliegue Blue/Green
         run: |
           set -e
-      
-          # Configuración
-          DEPLOY_COLOR="${{ github.event.inputs.color }}"  # O el color que estés desplegando
+
+          DEPLOY_COLOR="${{ github.event.inputs.color }}"  # O usa blue por defecto
           ACTIVE_COLOR="${DEPLOY_COLOR:-blue}"
           PORT=$([ "$ACTIVE_COLOR" = "blue" ] && echo 3001 || echo 3002)
-      
-          echo "Verificando despliegue en color $ACTIVE_COLOR, puerto $PORT..."
-      
-          # Comprobar si el contenedor está corriendo
           CONTAINER_NAME="vps-g-app-$ACTIVE_COLOR"
-          if ! ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no user@host "docker ps --filter name=$CONTAINER_NAME --format '{{.Names}}'" | grep -q "$CONTAINER_NAME"; then
+
+          echo "Verificando despliegue en color $ACTIVE_COLOR, puerto $PORT..."
+
+          # Comprobar si el contenedor está corriendo
+          if ! ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "docker ps --filter name=$CONTAINER_NAME --format '{{.Names}}'" | grep -q "$CONTAINER_NAME"; then
             echo "❌ Contenedor $CONTAINER_NAME no está corriendo."
             exit 1
           fi
-      
+
           # Esperar hasta que el contenedor responda
           echo "-> Esperando a que $CONTAINER_NAME responda en http://127.0.0.1:$PORT ..."
           while true; do
-            STATUS=$(ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no user@host \
+            STATUS=$(ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
               "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT || echo '000'")
             if [ "$STATUS" = "200" ]; then
               echo "✅ $CONTAINER_NAME respondió correctamente!"
