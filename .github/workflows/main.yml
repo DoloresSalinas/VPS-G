@@ -34,5 +34,5 @@ jobs:
             -p 2922 \
             -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "cd /home/${{ secrets.SSH_USER }}/app && docker compose down && docker compose up -d --build"
+            "cd /home/${{ secrets.SSH_USER }}/app && docker-compose down && docker-compose up -d --build"
 
