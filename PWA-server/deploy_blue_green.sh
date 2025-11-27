@@ -18,7 +18,7 @@ PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
 
 # Actualizar NGINX para apuntar al color activo
 echo "-> Actualizando NGINX para usar puerto $PORT..."
-sed -i "s|proxy_pass http://.*;|proxy_pass http://127.0.0.1:${PORT};|g" $NGINX_CONF
+sudo sed -i "s|proxy_pass http://.*;|proxy_pass http://127.0.0.1:${PORT};|g" $NGINX_CONF
 
 # Guardar color activo
 mkdir -p $(dirname $ACTIVE_FILE)
