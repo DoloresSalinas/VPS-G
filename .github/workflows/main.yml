@@ -31,16 +31,26 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
-
+      
             # Variables de entorno
             export DATABASE_URL='${{ secrets.DATABASE_URL }}'
             export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}'
-
-            # ⚡ Asegurar directorio nginx y archivo ACTIVE
+      
+            # Asegurar directorio nginx y archivo ACTIVE
             mkdir -p nginx
             touch nginx/ACTIVE
             chmod 664 nginx/ACTIVE
-
-            # Ejecutar script Blue-Green que maneja todo (color, contenedor, NGINX)
-            bash PWA-server/deploy_blue_green.sh
+      
+            # Determinar color a desplegar (Blue <-> Green)
+            CURRENT_COLOR=\$(cat nginx/ACTIVE 2>/dev/null || echo 'green')
+            if [ \"\$CURRENT_COLOR\" = 'blue' ]; then
+              NEXT_COLOR='green'
+            else
+              NEXT_COLOR='blue'
+            fi
+      
+            echo 'Desplegando color:' \$NEXT_COLOR
+      
+            # Ejecutar script de despliegue con el color correcto
+            bash PWA-server/deploy_blue_green.sh \$NEXT_COLOR
           "
