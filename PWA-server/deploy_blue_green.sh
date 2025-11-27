@@ -10,11 +10,19 @@ COLOR=${1:-blue}              # Color a desplegar (blue o green)
 SERVICE_NAME="app-$COLOR"     # Nombre del servicio en Docker Compose
 NGINX_CONF="/etc/nginx/conf.d/app.conf"
 ACTIVE_FILE="nginx/ACTIVE"
-PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
 TIMEOUT=300
 END=$((SECONDS+TIMEOUT))
 
-echo "=== Desplegando color: $COLOR ==="
+# Asegurarse de que exista el archivo ACTIVE
+mkdir -p $(dirname $ACTIVE_FILE)
+if [ ! -s "$ACTIVE_FILE" ]; then
+  echo "$COLOR" > "$ACTIVE_FILE"
+fi
+
+# Determinar puerto según color
+PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
+
+echo "=== Desplegando color: $COLOR en puerto $PORT ==="
 
 # ---------------------------
 # Eliminar contenedores viejos
@@ -28,9 +36,9 @@ echo "-> Levantando contenedor $SERVICE_NAME..."
 docker compose -p app up -d --build --remove-orphans $SERVICE_NAME
 
 # ---------------------------
-# Esperar hasta 300 segundos a que la app responda
+# Esperar hasta $TIMEOUT segundos a que la app responda
 # ---------------------------
-echo "-> Esperando hasta $TIMEOUT segundos a que app-$COLOR responda en puerto $PORT..."
+echo "-> Esperando hasta $TIMEOUT segundos a que app-$COLOR responda..."
 while true; do
   STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT || echo "000")
   if [ "$STATUS" = "200" ]; then
@@ -53,8 +61,7 @@ sudo sed -i "s|proxy_pass http://.*;|proxy_pass http://127.0.0.1:${PORT};|g" $NG
 # ---------------------------
 # Guardar color activo
 # ---------------------------
-mkdir -p $(dirname $ACTIVE_FILE)
-echo $COLOR > $ACTIVE_FILE
+echo $COLOR > "$ACTIVE_FILE"
 
 # ---------------------------
 # Recargar NGINX
