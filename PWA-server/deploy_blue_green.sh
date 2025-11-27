@@ -13,8 +13,22 @@ echo "=== Desplegando color: $COLOR ==="
 # ⚡ Eliminar contenedores viejos para evitar conflictos
 docker rm -f vps-g-app-blue vps-g-app-green 2>/dev/null || true
 
-# Determinar el puerto según el color
+# Levantar el contenedor correspondiente
 PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
+CONTAINER_NAME="vps-g-app-$COLOR"
+docker compose -p app up -d --build --remove-orphans $CONTAINER_NAME
+
+# ⚡ Esperar a que el backend responda antes de actualizar NGINX
+echo "-> Esperando a que $COLOR esté disponible en el puerto $PORT..."
+for i in $(seq 1 10); do
+  STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT || echo 000)
+  if [ "$STATUS" -eq 200 ]; then
+    echo "Backend listo!"
+    break
+  fi
+  echo "Intento $i: backend no listo, esperando 3s..."
+  sleep 3
+done
 
 # Actualizar NGINX para apuntar al color activo
 echo "-> Actualizando NGINX para usar puerto $PORT..."
