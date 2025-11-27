@@ -6,7 +6,7 @@ set -e
 
 COLOR=${1:-blue}  # color a desplegar (blue o green)
 NGINX_CONF="/etc/nginx/conf.d/app.conf"
-ACTIVE_FILE="/home/deployer/app/nginx/ACTIVE"
+ACTIVE_FILE="nginx/ACTIVE"
 
 echo "=== Desplegando color: $COLOR ==="
 
