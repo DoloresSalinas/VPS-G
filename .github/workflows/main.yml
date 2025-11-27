@@ -32,9 +32,15 @@ jobs:
         # 4. Ejecutar comandos remotos en el VPS
       - name: Ejecutar deploy en VPS
         run: |
-          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-          "cd /home/${{ secrets.SSH_USER }}/app && \
-          export DATABASE_URL='${{ secrets.DATABASE_URL }}' && \
-          export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}' && \
-          COLOR=\$( [ -f nginx/ACTIVE ] && grep -q blue nginx/ACTIVE && echo green || echo blue ) && \
-          bash PWA-server/deploy_blue_green.sh \$COLOR"
+          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no user@host "
+            cd /home/user/app &&
+            export DATABASE_URL='***' &&
+            export K6_CLOUD_TOKEN='***' &&
+            COLOR=\$( [ -f nginx/ACTIVE ] && grep -q blue nginx/ACTIVE && echo green || echo blue ) &&
+            
+            docker-compose -p app down &&
+            docker-compose -p app --remove-orphans up -d --build
+            
+            bash PWA-server/deploy_blue_green.sh \$COLOR
+          "
+
