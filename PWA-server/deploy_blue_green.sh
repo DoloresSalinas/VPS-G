@@ -11,6 +11,7 @@ SERVICE_NAME="app-$COLOR"     # Nombre del servicio en Docker Compose
 NGINX_CONF="/etc/nginx/conf.d/app.conf"
 ACTIVE_FILE="nginx/ACTIVE"
 PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
+TIMEOUT=300 
 
 echo "=== Desplegando color: $COLOR ==="
 
@@ -26,16 +27,22 @@ echo "-> Levantando contenedor $SERVICE_NAME..."
 docker compose -p app up -d --build --remove-orphans $SERVICE_NAME
 
 # ---------------------------
-# Esperar a que el contenedor responda indefinidamente
+# Esperar hasta 300 segundos a que la app responda
 # ---------------------------
-echo "-> Esperando a que $SERVICE_NAME responda en puerto $PORT..."
-while true; do
-    if curl -s http://127.0.0.1:$PORT >/dev/null 2>&1; then
-        echo "✅ Contenedor $SERVICE_NAME listo."
-        break
-    fi
-    sleep 2
+echo "-> Esperando hasta 30 segundos a que app-$COLOR responda en puerto $PORT..."
+for i in {1..30}; do
+  STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT || echo "000")
+  if [ "$STATUS" = "200" ]; then
+    echo "✅ app-$COLOR respondió correctamente!"
+    break
+  fi
+  sleep 1
 done
+
+if [ "$STATUS" != "200" ]; then
+  echo "❌ app-$COLOR no respondió después de 30 segundos."
+  exit 1
+fi
 
 # ---------------------------
 # Actualizar NGINX
