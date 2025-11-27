@@ -1,26 +1,19 @@
+version: "3.9"
+
 services:
   app:
     image: ghcr.io/doloressalinas/vps-g:latest
     container_name: vps-g-app
     restart: always
     ports:
-      - "80:80"
-    environment:
-      - NODE_ENV=production
-      - DB_HOST=db
-      - DB_USER=user
-      - DB_PASS=password
-
-  db:
-    image: postgres:15
-    container_name: vps-g-db
-    restart: always
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=mydb
-    volumes:
-      - db_data:/var/lib/postgresql/data
+      - "3001:3001"
+    env_file:
+      - .env   # Apunta a tu archivo local .env (solo en desarrollo)
+    # Alternativamente, puedes definir variables explícitas:
+    # environment:
+    #   - DATABASE_URL=${DATABASE_URL}
+    #   - K6_CLOUD_TOKEN=${K6_CLOUD_TOKEN}
 
 volumes:
-  db_data:
+  # Si necesitas persistencia de datos para la app, puedes agregar un volumen
+  app_data:

@@ -11,6 +11,10 @@ app.use(express.json());
 // Rutas de autenticación
 app.use("/api", authRoutes);
 
+app.get("/", (req, res) => {
+  res.send("Servidor corriendo en la raíz /");
+});
+
 // Ruta protegida de prueba
 app.get("/api/protected", verifyToken, (req, res) => {
   res.json({ message: "Ruta protegida", user: req.user });
