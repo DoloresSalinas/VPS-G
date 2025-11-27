@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  # Servicio que simula el entorno Blue
+  # Servicio Blue
   app-blue:
     build:
       context: ./PWA-server
@@ -9,19 +9,15 @@ services:
     container_name: vps-g-app-blue
     restart: always
     environment:
-      # Las variables de entorno definidas
-      - DATABASE_URL
-      - K6_CLOUD_TOKEN
-      - APP_COLOR=blue # Variable para diferenciar el entorno
-    # Mapeo de puertos para el slot Blue
-    # HOST_PORT:CONTAINER_PORT
-    # El script de shell usa 3000 para Blue.
+      - DATABASE_URL=${DATABASE_URL}
+      - K6_CLOUD_TOKEN=${K6_CLOUD_TOKEN}
+      - APP_COLOR=blue
     ports:
-      - "3000:3000"
+      - "3001:3000"  # Exponemos Blue en el puerto 3001
     networks:
       - appnet
 
-  # Servicio que simula el entorno Green
+  # Servicio Green
   app-green:
     build:
       context: ./PWA-server
@@ -29,16 +25,11 @@ services:
     container_name: vps-g-app-green
     restart: always
     environment:
-      # Las variables de entorno definidas
-      - DATABASE_URL
-      - K6_CLOUD_TOKEN
-      - APP_COLOR=green # Variable para diferenciar el entorno
-    # Mapeo de puertos para el slot Green
-    # HOST_PORT:CONTAINER_PORT
-    # El script de shell usa 3001 para Green.
+      - DATABASE_URL=${DATABASE_URL}
+      - K6_CLOUD_TOKEN=${K6_CLOUD_TOKEN}
+      - APP_COLOR=green
     ports:
-      - "3001:3000"
-      - "3002:3000"
+      - "3002:3000"  # Exponemos Green en el puerto 3002
     networks:
       - appnet
 
