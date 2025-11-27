@@ -63,12 +63,21 @@ jobs:
       - name: Verify Blue-Green deployment
         run: |
           ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s <<'EOF'
-            STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1)
-            echo "HTTP response code: $STATUS"
-            if [ $STATUS -ne 200 ]; then
-              echo "Despliegue fallido!"
-              exit 1
-            else
-              echo "Despliegue OK"
-            fi
+            ACTIVE_COLOR=$(cat nginx/ACTIVE)
+            PORT=$([ "$ACTIVE_COLOR" = "blue" ] && echo 3001 || echo 3002)
+            echo "Verificando despliegue en color $ACTIVE_COLOR, puerto $PORT..."
+            
+            # Esperar hasta 30 segundos a que el contenedor responda
+            for i in {1..30}; do
+              STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "✅ Despliegue OK"
+                exit 0
+              fi
+              sleep 1
+            done
+      
+            echo "❌ El contenedor $ACTIVE_COLOR no respondió después de 30 segundos."
+            exit 1
           EOF
+
