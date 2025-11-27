@@ -6,17 +6,16 @@ set -e
 # ---------------------------
 # Configuración
 # ---------------------------
-COLOR=${1:-blue}  # color a desplegar (blue o green)
-SERVICE_NAME="app-$COLOR"
+COLOR=${1:-blue}              # Color a desplegar (blue o green)
+SERVICE_NAME="app-$COLOR"     # Nombre del servicio en Docker Compose
 NGINX_CONF="/etc/nginx/conf.d/app.conf"
 ACTIVE_FILE="nginx/ACTIVE"
 PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
-TIMEOUT=120  # segundos para esperar a que el contenedor responda
 
 echo "=== Desplegando color: $COLOR ==="
 
 # ---------------------------
-# Eliminar contenedores viejos para evitar conflictos
+# Eliminar contenedores viejos
 # ---------------------------
 docker rm -f vps-g-app-blue vps-g-app-green 2>/dev/null || true
 
@@ -27,18 +26,16 @@ echo "-> Levantando contenedor $SERVICE_NAME..."
 docker compose -p app up -d --build --remove-orphans $SERVICE_NAME
 
 # ---------------------------
-# Esperar a que el contenedor responda
+# Esperar a que el contenedor responda indefinidamente
 # ---------------------------
-echo "-> Esperando hasta $TIMEOUT segundos a que $SERVICE_NAME responda en puerto $PORT..."
-END=$((SECONDS+TIMEOUT))
-until curl -s http://127.0.0.1:$PORT >/dev/null 2>&1; do
-  if [ $SECONDS -ge $END ]; then
-    echo "❌ El contenedor $SERVICE_NAME no respondió después de $TIMEOUT segundos."
-    exit 1
-  fi
-  sleep 1
+echo "-> Esperando a que $SERVICE_NAME responda en puerto $PORT..."
+while true; do
+    if curl -s http://127.0.0.1:$PORT >/dev/null 2>&1; then
+        echo "✅ Contenedor $SERVICE_NAME listo."
+        break
+    fi
+    sleep 2
 done
-echo "✅ Contenedor $SERVICE_NAME listo."
 
 # ---------------------------
 # Actualizar NGINX
