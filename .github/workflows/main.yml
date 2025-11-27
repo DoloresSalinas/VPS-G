@@ -36,8 +36,13 @@ jobs:
             export DATABASE_URL='${{ secrets.DATABASE_URL }}'
             export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}'
 
+            # ⚡ Asegurar que el directorio nginx y el archivo ACTIVE existen y tienen permisos
+            mkdir -p nginx
+            touch nginx/ACTIVE
+            chmod 664 nginx/ACTIVE
+
             # Determinar color activo
-            COLOR=\$( [ -f nginx/ACTIVE ] && grep -q blue nginx/ACTIVE && echo green || echo blue )
+            COLOR=\$(grep -q blue nginx/ACTIVE && echo green || echo blue)
             echo 'Desplegando color:' \$COLOR
 
             # ⚡ Eliminar contenedores viejos para evitar conflictos
@@ -50,6 +55,7 @@ jobs:
             # Ejecutar script blue-green para actualizar NGINX
             bash PWA-server/deploy_blue_green.sh \$COLOR
           "
+
 
       - name: Listar contenedores en VPS
         run: ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps"
