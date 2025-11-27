@@ -29,12 +29,16 @@ jobs:
           ./ \
           ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
-      # 4. Ejecutar comandos remotos (deploy) usando docker-compose
+      # 4. Ejecutar deploy en VPS con variables de entorno
       - name: Ejecutar deploy en VPS
         run: |
-          ssh \
-            -i ~/.ssh/id_ed25519 \
-            -p 2922 \
-            -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "cd /home/${{ secrets.SSH_USER }}/app && docker-compose down && docker-compose up -d --build"
+          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no \
+          ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            cd /home/${{ secrets.SSH_USER }}/app
+            # Exportar variables de entorno desde GitHub Secrets
+            export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            export K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}"
+            # Levantar contenedores con Docker Compose
+            docker-compose down
+            docker-compose up -d --build
+          EOF
