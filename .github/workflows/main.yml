@@ -10,15 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Clonar el repositorio
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      # 2. Configurar la llave SSH
       - name: Configurar llave SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
+      # 3. Copiar los archivos al servidor usando rsync
       - name: Copiar archivos al servidor
         run: |
           rsync -avz --delete \
@@ -26,8 +29,8 @@ jobs:
           ./ \
           ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
-
-      - name: Ejecutar comandos remotos (deploy)
+      # 4. Ejecutar comandos remotos (deploy) usando docker-compose
+      - name: Ejecutar deploy en VPS
         run: |
           ssh \
             -i ~/.ssh/id_ed25519 \
@@ -35,4 +38,3 @@ jobs:
             -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd /home/${{ secrets.SSH_USER }}/app && docker-compose down && docker-compose up -d --build"
-
