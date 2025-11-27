@@ -11,6 +11,9 @@ app.use(express.json());
 // Rutas de autenticación
 app.use("/api", authRoutes);
 
+app.get("/", (req, res) => {
+  res.send("Servidor corriendo en la raíz /");
+});
 // Ruta protegida de prueba
 app.get("/api/protected", verifyToken, (req, res) => {
   res.json({ message: "Ruta protegida", user: req.user });
@@ -157,7 +160,7 @@ app.get('/reservations', async (req, res) => {
 });
 
 // Iniciar servidor
-const PORT = 3001;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
 });

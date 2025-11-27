@@ -36,4 +36,5 @@ jobs:
           "cd /home/${{ secrets.SSH_USER }}/app && \
           export DATABASE_URL='${{ secrets.DATABASE_URL }}' && \
           export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}' && \
-          docker-compose down && docker-compose up -d --build"
+          COLOR=\$( [ -f nginx/ACTIVE ] && grep -q blue nginx/ACTIVE && echo green || echo blue ) && \
+          bash PWA-server/deploy_blue_green.sh \$COLOR"
