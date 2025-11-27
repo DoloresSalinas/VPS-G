@@ -1,13 +1,9 @@
 #!/bin/bash
-# deploy_blue_green.sh
-# Uso: ./deploy_blue_green.sh <blue|green>
 set -e
 
 # ---------------------------
 # Configuración
 # ---------------------------
-COLOR=${1:-blue}              # Color a desplegar (blue o green)
-SERVICE_NAME="app-$COLOR"     # Nombre del servicio en Docker Compose
 NGINX_CONF="/etc/nginx/conf.d/app.conf"
 ACTIVE_FILE="nginx/ACTIVE"
 TIMEOUT=300
@@ -16,11 +12,20 @@ END=$((SECONDS+TIMEOUT))
 # Asegurarse de que exista el archivo ACTIVE
 mkdir -p $(dirname $ACTIVE_FILE)
 if [ ! -s "$ACTIVE_FILE" ]; then
-  echo "$COLOR" > "$ACTIVE_FILE"
+  echo "green" > "$ACTIVE_FILE"
 fi
 
-# Determinar puerto según color
-PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
+# Determinar color actual y próximo
+CURRENT_COLOR=$(cat "$ACTIVE_FILE")
+if [ "$CURRENT_COLOR" = "blue" ]; then
+  COLOR="green"
+  PORT=3002
+else
+  COLOR="blue"
+  PORT=3001
+fi
+
+SERVICE_NAME="app-$COLOR"
 
 echo "=== Desplegando color: $COLOR en puerto $PORT ==="
 
@@ -49,7 +54,7 @@ while true; do
     echo "❌ app-$COLOR no respondió después de $TIMEOUT segundos."
     exit 1
   fi
-  sleep 1
+  sleep 2
 done
 
 # ---------------------------
@@ -69,3 +74,4 @@ echo $COLOR > "$ACTIVE_FILE"
 sudo systemctl reload nginx
 
 echo "✅ Despliegue $COLOR completado!"
+docker ps
