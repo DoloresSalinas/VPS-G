@@ -35,14 +35,14 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<'EOF'
+          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no user@host 'bash -s' <<'EOF'
             set -e
-            cd /home/${{ secrets.SSH_USER }}/app
-
+            cd /home/user/app
+            
             # Pasar variables de entorno al script
             export DATABASE_URL="$DATABASE_URL"
             export K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN"
-
+            
             # Ejecutar deploy blue-green
             bash -x PWA-server/deploy_blue_green.sh
-            EOF
+          EOF
