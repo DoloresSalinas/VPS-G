@@ -1,4 +1,4 @@
-name: Deploy VPS Azure
+name: Deploy VPS Azure Blue-Green
 
 on:
   push:
@@ -10,15 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Clonar el repositorio
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      # 2️⃣ Configurar la llave SSH
       - name: Configurar llave SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
+      # 3️⃣ Copiar archivos al VPS
       - name: Copiar archivos al VPS
         run: |
           rsync -avz --delete \
@@ -26,7 +29,8 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
-      - name: Ejecutar deploy Blue-Green en VPS
+      # 4️⃣ Ejecutar deploy blue-green en VPS
+      - name: Ejecutar deploy Blue-Green
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
@@ -34,11 +38,11 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<'EOF'
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
-      
+
             # Pasar variables de entorno al script
             export DATABASE_URL="$DATABASE_URL"
             export K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN"
-      
+
             # Ejecutar deploy blue-green
             bash -x PWA-server/deploy_blue_green.sh
-      EOF
+            EOF
