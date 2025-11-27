@@ -44,8 +44,8 @@ jobs:
             echo 'Desplegando color:' \$COLOR &&
 
             # Construir servicios con docker-compose
-            docker-compose -p app down &&
-            docker-compose -p app --remove-orphans up -d --build &&
+            docker compose -p app down &&
+            docker compose -p app --remove-orphans up -d --build &&
 
             # Ejecutar despliegue Blue-Green
             bash PWA-server/deploy_blue_green.sh \$COLOR
