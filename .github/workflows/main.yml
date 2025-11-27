@@ -26,7 +26,7 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
-      - name: Ejecutar deploy blue-green en VPS
+      - name: Ejecutar deploy Blue-Green en VPS
         run: |
           ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             set -e
@@ -36,57 +36,54 @@ jobs:
             export DATABASE_URL='${{ secrets.DATABASE_URL }}'
             export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}'
 
-            # Asegurar que el directorio nginx y el archivo ACTIVE existen
+            # ⚡ Asegurar directorio nginx y archivo ACTIVE
             mkdir -p nginx
             touch nginx/ACTIVE
             chmod 664 nginx/ACTIVE
 
-            # Determinar color activo
-            COLOR=\$(grep -q blue nginx/ACTIVE && echo green || echo blue)
-            echo 'Desplegando color:' \$COLOR
+            # Determinar color a desplegar (Blue <-> Green)
+            CURRENT_COLOR=\$(cat nginx/ACTIVE 2>/dev/null || echo 'green')
+            if [ \"\$CURRENT_COLOR\" = 'blue' ]; then
+              NEXT_COLOR='green'
+              PORT=3002
+            else
+              NEXT_COLOR='blue'
+              PORT=3001
+            fi
+            echo 'Desplegando color:' \$NEXT_COLOR
 
-            # Eliminar contenedores viejos
+            # Limpiar contenedores viejos
             docker rm -f vps-g-app-blue vps-g-app-green 2>/dev/null || true
 
-            # Levantar los contenedores nuevos
+            # Levantar contenedores con Docker Compose
             docker compose -p app down || true
             docker compose -p app up -d --build --remove-orphans
 
-            # Ejecutar script blue-green para actualizar NGINX
-            bash PWA-server/deploy_blue_green.sh \$COLOR
+            # Ejecutar script Blue-Green para actualizar NGINX
+            bash PWA-server/deploy_blue_green.sh \$NEXT_COLOR
+
+            # Esperar hasta que el contenedor responda
+            echo '-> Esperando a que el contenedor responda...'
+            END=\$((SECONDS+300))
+            while true; do
+              STATUS=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:\$PORT || echo '000')
+              if [ \"\$STATUS\" = '200' ]; then
+                echo '✅ Contenedor \$NEXT_COLOR listo en puerto \$PORT!'
+                break
+              fi
+              if [ \$SECONDS -ge \$END ]; then
+                echo '❌ Timeout: contenedor \$NEXT_COLOR no respondió'
+                exit 1
+              fi
+              sleep 5
+            done
+
+            # Guardar color activo
+            echo \$NEXT_COLOR > nginx/ACTIVE
+
+            # Recargar NGINX
+            sudo systemctl reload nginx
+
+            # Mostrar contenedores activos
+            docker ps
           "
-
-      - name: Listar contenedores en VPS
-        run: ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps"
-
-      - name: Verificar despliegue Blue/Green
-        run: |
-          set -e
-
-          DEPLOY_COLOR="${{ github.event.inputs.color }}"  # O usa blue por defecto
-          ACTIVE_COLOR="${DEPLOY_COLOR:-blue}"
-          PORT=$([ "$ACTIVE_COLOR" = "blue" ] && echo 3001 || echo 3002)
-          CONTAINER_NAME="vps-g-app-$ACTIVE_COLOR"
-
-          echo "Verificando despliegue en color $ACTIVE_COLOR, puerto $PORT..."
-
-          # Comprobar si el contenedor está corriendo
-          if ! ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "docker ps --filter name=$CONTAINER_NAME --format '{{.Names}}'" | grep -q "$CONTAINER_NAME"; then
-            echo "❌ Contenedor $CONTAINER_NAME no está corriendo."
-            exit 1
-          fi
-
-          # Esperar hasta que el contenedor responda
-          echo "-> Esperando a que $CONTAINER_NAME responda en http://127.0.0.1:$PORT ..."
-          while true; do
-            STATUS=$(ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT || echo '000'")
-            if [ "$STATUS" = "200" ]; then
-              echo "✅ $CONTAINER_NAME respondió correctamente!"
-              break
-            fi
-            echo "Esperando... (estado actual: $STATUS)"
-            sleep 5
-          done
-        shell: bash
