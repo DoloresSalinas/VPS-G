@@ -24,7 +24,7 @@ app.get('/users', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM usuarios');
     
-    console.log(res.json(result.rows));
+    console.log(result.rows);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -160,7 +160,7 @@ app.get('/reservations', async (req, res) => {
 });
 
 // Iniciar servidor
-const PORT = 3001;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor de prueba corriendo en el puerto http://127.0.0.1:${PORT}`);
+  console.log(`Servidor corriendo en http://127.0.0.1:${PORT}`);
 });
