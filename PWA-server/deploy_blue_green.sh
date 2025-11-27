@@ -9,34 +9,29 @@ ACTIVE_FILE="nginx/ACTIVE"
 TIMEOUT=300
 END=$((SECONDS+TIMEOUT))
 
-# ---------------------------
-# Determinar color a desplegar
-# ---------------------------
-# Color pasado como argumento opcional
-INPUT_COLOR="$1"
+# Variables de entorno para Docker Compose
+export DATABASE_URL=${DATABASE_URL:-""}
+export K6_CLOUD_TOKEN=${K6_CLOUD_TOKEN:-""}
 
+# ---------------------------
 # Asegurarse de que exista el archivo ACTIVE
+# ---------------------------
 mkdir -p $(dirname "$ACTIVE_FILE")
 if [ ! -s "$ACTIVE_FILE" ]; then
   echo "green" > "$ACTIVE_FILE"
 fi
 
+# ---------------------------
+# Determinar color actual y próximo
+# ---------------------------
 CURRENT_COLOR=$(cat "$ACTIVE_FILE")
-
-# Si no se pasa color, alternar automáticamente
-if [ -z "$INPUT_COLOR" ]; then
-  if [ "$CURRENT_COLOR" = "blue" ]; then
-    COLOR="green"
-    PORT=3002
-  else
-    COLOR="blue"
-    PORT=3001
-  fi
+if [ "$CURRENT_COLOR" = "blue" ]; then
+  COLOR="green"
+  PORT=3002
 else
-  COLOR="$INPUT_COLOR"
-  PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
+  COLOR="blue"
+  PORT=3001
 fi
-
 SERVICE_NAME="app-$COLOR"
 
 echo "=== Desplegando color: $COLOR en puerto $PORT ==="
@@ -50,10 +45,10 @@ docker rm -f vps-g-app-blue vps-g-app-green 2>/dev/null || true
 # Levantar contenedor del color activo
 # ---------------------------
 echo "-> Levantando contenedor $SERVICE_NAME..."
-docker compose -p app up -d --build --remove-orphans "$SERVICE_NAME"
+docker compose -p app up -d --build --remove-orphans $SERVICE_NAME
 
 # ---------------------------
-# Esperar hasta $TIMEOUT segundos a que la app responda
+# Esperar a que la app responda
 # ---------------------------
 echo "-> Esperando hasta $TIMEOUT segundos a que app-$COLOR responda..."
 while true; do
@@ -73,12 +68,12 @@ done
 # Actualizar NGINX
 # ---------------------------
 echo "-> Actualizando NGINX para usar puerto $PORT..."
-sudo sed -i "s|proxy_pass http://.*;|proxy_pass http://127.0.0.1:${PORT};|g" "$NGINX_CONF"
+sudo sed -i "s|proxy_pass http://.*;|proxy_pass http://127.0.0.1:${PORT};|g" $NGINX_CONF
 
 # ---------------------------
 # Guardar color activo
 # ---------------------------
-echo "$COLOR" > "$ACTIVE_FILE"
+echo $COLOR > "$ACTIVE_FILE"
 
 # ---------------------------
 # Recargar NGINX
