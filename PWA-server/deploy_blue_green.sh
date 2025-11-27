@@ -10,8 +10,12 @@ TIMEOUT=300
 END=$((SECONDS+TIMEOUT))
 
 # Variables de entorno para Docker Compose
-export DATABASE_URL=${DATABASE_URL:-""}
-export K6_CLOUD_TOKEN=${K6_CLOUD_TOKEN:-""}
+export DATABASE_URL="$DATABASE_URL"
+export K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN"
+
+echo "-> Variables de entorno:"
+echo "DATABASE_URL=$DATABASE_URL"
+echo "K6_CLOUD_TOKEN=$K6_CLOUD_TOKEN"
 
 # ---------------------------
 # Asegurarse de que exista el archivo ACTIVE
