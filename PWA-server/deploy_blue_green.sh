@@ -11,7 +11,7 @@ SERVICE_NAME="app-$COLOR"
 NGINX_CONF="/etc/nginx/conf.d/app.conf"
 ACTIVE_FILE="nginx/ACTIVE"
 PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
-TIMEOUT=30  # segundos para esperar a que el contenedor responda
+TIMEOUT=120  # segundos para esperar a que el contenedor responda
 
 echo "=== Desplegando color: $COLOR ==="
 
