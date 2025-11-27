@@ -38,9 +38,8 @@ else
 fi
 SERVICE_NAME="app-$COLOR"
 OLD_SERVICE="app-$CURRENT_COLOR"
-OLD_PORT=$([ "$CURRENT_COLOR" = "blue" ] && echo 3001 || echo 3002)
 
-echo "=== Desplegando color: $COLOR (nuevo) en puerto $PORT, manteniendo $CURRENT_COLOR en $OLD_PORT ==="
+echo "=== Desplegando color: $COLOR (nuevo) en puerto $PORT ==="
 
 # ---------------------------
 # Levantar contenedor del nuevo color
@@ -69,8 +68,9 @@ done
 # Cambiar NGINX al nuevo contenedor
 # ---------------------------
 echo "-> Actualizando NGINX para usar puerto $PORT..."
-sudo sed -i "s|proxy_pass http://.*;|proxy_pass http://127.0.0.1:${PORT};|g" $NGINX_CONF
-sudo systemctl reload nginx
+sudo sed -i "s|proxy_pass http://127.0.0.1:.*;|proxy_pass http://127.0.0.1:${PORT};|" $NGINX_CONF
+sudo nginx -t && sudo systemctl reload nginx
+
 echo "✅ NGINX apunta ahora a $COLOR"
 
 # ---------------------------
@@ -82,7 +82,10 @@ echo $COLOR > "$ACTIVE_FILE"
 # Borrar contenedor viejo
 # ---------------------------
 echo "-> Eliminando contenedor viejo $OLD_SERVICE..."
-docker rm -f vps-g-app-$CURRENT_COLOR 2>/dev/null || true
+OLD_CONTAINER=$(docker compose -p app ps -q $OLD_SERVICE)
+if [ -n "$OLD_CONTAINER" ]; then
+  docker rm -f $OLD_CONTAINER
+fi
 
 echo "✅ Despliegue blue-green zero-downtime completado!"
 docker ps
