@@ -49,3 +49,6 @@ jobs:
             # Ejecutar despliegue Blue-Green
             bash PWA-server/deploy_blue_green.sh \$COLOR
           "
+          
+      - name: Listar contenedores en VPS
+        run: ssh -i ~/.ssh/id_ed25519 -p 2922 user@vps "docker ps"
