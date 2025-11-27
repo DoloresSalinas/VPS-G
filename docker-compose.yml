@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+  # Servicio que simula el entorno Blue
   app-blue:
     build:
       context: ./PWA-server
@@ -8,13 +9,19 @@ services:
     container_name: vps-g-app-blue
     restart: always
     environment:
+      # Las variables de entorno definidas
       - DATABASE_URL
       - K6_CLOUD_TOKEN
-    expose:
-      - "3001"
+      - APP_COLOR=blue # Variable para diferenciar el entorno
+    # Mapeo de puertos para el slot Blue
+    # HOST_PORT:CONTAINER_PORT
+    # El script de shell usa 3000 para Blue.
+    ports:
+      - "3000:3000"
     networks:
       - appnet
 
+  # Servicio que simula el entorno Green
   app-green:
     build:
       context: ./PWA-server
@@ -22,24 +29,16 @@ services:
     container_name: vps-g-app-green
     restart: always
     environment:
+      # Las variables de entorno definidas
       - DATABASE_URL
       - K6_CLOUD_TOKEN
-    expose:
-      - "3001"
-    networks:
-      - appnet
-
-  nginx:
-    image: nginx:alpine
-    container_name: vps-g-nginx
-    restart: always
+      - APP_COLOR=green # Variable para diferenciar el entorno
+    # Mapeo de puertos para el slot Green
+    # HOST_PORT:CONTAINER_PORT
+    # El script de shell usa 3001 para Green.
     ports:
-      - "80:80"
-    volumes:
-      - ./nginx/active.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - app-blue
-      - app-green
+      - "3001:3000"
+      - "3002:3000"
     networks:
       - appnet
 
