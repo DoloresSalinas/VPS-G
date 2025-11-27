@@ -87,5 +87,5 @@ if [ -n "$OLD_CONTAINER" ]; then
   docker rm -f $OLD_CONTAINER
 fi
 
-echo "✅ Despliegue blue-green zero-downtime completado!"
+echo "✅ Despliegue blue-green zero-downtime completado ahora si todo es correcto siwwww!"
 docker ps
