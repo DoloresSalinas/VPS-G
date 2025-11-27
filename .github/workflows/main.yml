@@ -22,13 +22,14 @@ jobs:
       - name: Copiar archivos al servidor
         run: |
           rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            -e "ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no" \
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
       - name: Ejecutar comandos remotos (deploy)
         run: |
           ssh -i ~/.ssh/id_ed25519 \
+            -p 2922 \
             -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd /home/${{ secrets.SSH_USER }}/app && \
