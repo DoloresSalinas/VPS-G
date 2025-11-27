@@ -1,33 +1,29 @@
 #!/bin/bash
-# deploy_blue_green.sh
-# Uso: ./deploy_blue_green.sh <blue|green>
-
 set -e
 
-COLOR=${1:-blue}  # color a desplegar (blue o green)
+COLOR=${1:-blue}  
 APP_NAME="vps-g-app"
 NETWORK_NAME="app_appnet"
+NGINX_ACTIVE_FILE="/home/deployer/app/nginx/ACTIVE"
+NGINX_CONF="/etc/nginx/conf.d/app.conf"
 
 echo "=== Desplegando color: $COLOR ==="
 
-# 1️⃣ Limpiar contenedores antiguos
-echo "-> Limpiando contenedores antiguos..."
-docker ps -a -q --filter "name=${APP_NAME}" | xargs -r docker rm -f
+# Crear carpeta ACTIVE si no existe
+mkdir -p $(dirname $NGINX_ACTIVE_FILE)
 
-# 2️⃣ Limpiar red vieja
-docker network ls | grep ${NETWORK_NAME} | awk '{print $1}' | xargs -r docker network rm || true
+# Limpiar contenedores antiguos
+docker rm -f ${APP_NAME}-blue ${APP_NAME}-green 2>/dev/null || true
 
-# 3️⃣ Construir contenedor del color a desplegar
-echo "-> Construyendo contenedor $COLOR..."
-if [ "$COLOR" = "blue" ]; then
-    HOST_PORT=3001
-else
-    HOST_PORT=3002
-fi
+# Crear red si no existe
+docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || \
+  docker network create -d bridge ${NETWORK_NAME}
 
+# Construir contenedor
+HOST_PORT=$([ "$COLOR" = "blue" ] && echo 3001 || echo 3002)
 docker build -t ${APP_NAME}-${COLOR} ./PWA-server
 
-# 4️⃣ Levantar el contenedor
+# Levantar contenedor
 docker run -d \
   --name ${APP_NAME}-${COLOR} \
   -p ${HOST_PORT}:3000 \
@@ -37,20 +33,13 @@ docker run -d \
   -e APP_COLOR="$COLOR" \
   ${APP_NAME}-${COLOR}
 
-# 5️⃣ Actualizar NGINX para apuntar al nuevo color
-echo "-> Actualizando NGINX..."
-NGINX_CONF="/etc/nginx/conf.d/app.conf"
+# Actualizar NGINX
+sed -i "s|proxy_pass http://.*;|proxy_pass http://127.0.0.1:${HOST_PORT};|g" $NGINX_CONF
 
-if [ "$COLOR" = "blue" ]; then
-    sed -i 's|proxy_pass http://.*;|proxy_pass http://127.0.0.1:3001; # blue|' $NGINX_CONF
-else
-    sed -i 's|proxy_pass http://.*;|proxy_pass http://127.0.0.1:3002; # green|' $NGINX_CONF
-fi
+# Guardar color activo
+echo $COLOR > $NGINX_ACTIVE_FILE
 
-# 6️⃣ Guardar color activo
-echo $COLOR > /home/deployer/app/nginx/ACTIVE
-
-# 7️⃣ Recargar NGINX
+# Recargar NGINX
 sudo systemctl reload nginx
 
 echo "✅ Despliegue $COLOR completado!"
