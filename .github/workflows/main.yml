@@ -10,18 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Clonar el repositorio
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      # 2. Configurar la llave SSH
       - name: Configurar llave SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-      # 3. Copiar los archivos al servidor usando rsync
       - name: Copiar archivos al VPS
         run: |
           rsync -avz --delete \
@@ -29,26 +26,37 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
-      # 4. Ejecutar comandos remotos Blue-Green
       - name: Ejecutar deploy en VPS
         run: |
           ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            cd /home/${{ secrets.SSH_USER }}/app &&
+            set -e
+            cd /home/${{ secrets.SSH_USER }}/app
 
             # Variables de entorno
-            export DATABASE_URL='${{ secrets.DATABASE_URL }}' &&
-            export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}' &&
+            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
+            export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}'
 
-            # Determinar cuál color está activo
-            COLOR=\$( [ -f nginx/ACTIVE ] && grep -q blue nginx/ACTIVE && echo green || echo blue ) &&
-            echo 'Desplegando color:' \$COLOR &&
+            # Determinar color activo
+            COLOR=\$( [ -f nginx/ACTIVE ] && grep -q blue nginx/ACTIVE && echo green || echo blue )
+            echo 'Desplegando color:' \$COLOR
           
-            docker compose -p app down &&
-            docker compose -p app up -d --build --remove-orphans &&
+            docker compose -p app down
+            docker compose -p app up -d --build --remove-orphans
             
-            # Ejecutar despliegue Blue-Green
             bash PWA-server/deploy_blue_green.sh \$COLOR
           "
-          
+
       - name: Listar contenedores en VPS
-        run: ssh -i ~/.ssh/id_ed25519 -p 2922 user@vps "docker ps"
+        run: ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps"
+
+      - name: Verify Blue-Green deployment
+        run: ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+          STATUS=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1)
+          echo 'HTTP response code:' \$STATUS
+          if [ \$STATUS -ne 200 ]; then
+            echo '⚠️ Despliegue fallido!'
+            exit 1
+          else
+            echo '✅ Despliegue OK'
+          fi
+        "
