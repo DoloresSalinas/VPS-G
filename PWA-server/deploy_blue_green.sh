@@ -1,29 +1,56 @@
 #!/bin/bash
+# deploy_blue_green.sh
+# Uso: ./deploy_blue_green.sh <blue|green>
+
 set -e
-TARGET="$1"
-if [ "$TARGET" != "blue" ] && [ "$TARGET" != "green" ]; then
-  echo "Color inválido"
-  exit 1
-fi
-echo "Construyendo app-$TARGET"
-docker-compose build app-$TARGET
-echo "Levantando app-$TARGET"
-docker-compose up -d --remove-orphans app-$TARGET
-echo "Verificando salud app-$TARGET"
-bash PWA-server/scripts/healthcheck.sh app-$TARGET
-echo "Levantando Nginx"
-docker-compose up -d nginx
-echo "Cambiando Nginx al entorno $TARGET"
-bash nginx/switch-nginx.sh $TARGET
-echo "Validando configuración de Nginx"
-docker-compose exec nginx nginx -t
-echo "Recargando Nginx"
-docker-compose exec nginx nginx -s reload || docker-compose restart nginx
-echo "Deteniendo versión anterior"
-if [ "$TARGET" = "blue" ]; then
-  docker-compose stop app-green || true
+
+COLOR=${1:-blue}  # color a desplegar (blue o green)
+APP_NAME="vps-g-app"
+NETWORK_NAME="app_appnet"
+
+echo "=== Desplegando color: $COLOR ==="
+
+# 1️⃣ Limpiar contenedores antiguos
+echo "-> Limpiando contenedores antiguos..."
+docker ps -a -q --filter "name=${APP_NAME}" | xargs -r docker rm -f
+
+# 2️⃣ Limpiar red vieja
+docker network ls | grep ${NETWORK_NAME} | awk '{print $1}' | xargs -r docker network rm || true
+
+# 3️⃣ Construir contenedor del color a desplegar
+echo "-> Construyendo contenedor $COLOR..."
+if [ "$COLOR" = "blue" ]; then
+    HOST_PORT=3001
 else
-  docker-compose stop app-blue || true
+    HOST_PORT=3002
 fi
-echo "Despliegue completado"
-exit 0
+
+docker build -t ${APP_NAME}-${COLOR} ./PWA-server
+
+# 4️⃣ Levantar el contenedor
+docker run -d \
+  --name ${APP_NAME}-${COLOR} \
+  -p ${HOST_PORT}:3000 \
+  --network ${NETWORK_NAME} \
+  -e DATABASE_URL="$DATABASE_URL" \
+  -e K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN" \
+  -e APP_COLOR="$COLOR" \
+  ${APP_NAME}-${COLOR}
+
+# 5️⃣ Actualizar NGINX para apuntar al nuevo color
+echo "-> Actualizando NGINX..."
+NGINX_CONF="/etc/nginx/conf.d/app.conf"
+
+if [ "$COLOR" = "blue" ]; then
+    sed -i 's|proxy_pass http://.*;|proxy_pass http://127.0.0.1:3001; # blue|' $NGINX_CONF
+else
+    sed -i 's|proxy_pass http://.*;|proxy_pass http://127.0.0.1:3002; # green|' $NGINX_CONF
+fi
+
+# 6️⃣ Guardar color activo
+echo $COLOR > /home/deployer/app/nginx/ACTIVE
+
+# 7️⃣ Recargar NGINX
+sudo systemctl reload nginx
+
+echo "✅ Despliegue $COLOR completado!"
