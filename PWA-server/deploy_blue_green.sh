@@ -10,7 +10,7 @@ ACTIVE_FILE="/home/deployer/app/nginx/ACTIVE"
 
 echo "=== Desplegando color: $COLOR ==="
 
-# ⚡ Eliminar contenedores antiguos para evitar conflictos
+# ⚡ Eliminar contenedores viejos para evitar conflictos
 docker rm -f vps-g-app-blue vps-g-app-green 2>/dev/null || true
 
 # Determinar el puerto según el color
