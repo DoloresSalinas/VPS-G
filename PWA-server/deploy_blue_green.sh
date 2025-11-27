@@ -5,7 +5,7 @@ set -e
 # Configuración
 # ---------------------------
 NGINX_CONF="/etc/nginx/conf.d/app.conf"
-ACTIVE_FILE="nginx/ACTIVE"
+ACTIVE_FILE="/home/azureuser/app/nginx/ACTIVE"
 TIMEOUT=300
 END=$((SECONDS+TIMEOUT))
 
