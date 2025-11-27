@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/DoloresSalinas/VPS-G:latest
+    image: ghcr.io/doloressalinas/vps-g:latest
     container_name: vps-g-app
     restart: always
     ports:
