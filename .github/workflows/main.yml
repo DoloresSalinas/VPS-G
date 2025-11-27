@@ -1,27 +1,24 @@
-name: Deploy VPS en Azure
+name: Deploy VPS Azure
 
 on:
   push:
     branches:
-      - main  # Cada push a main disparará el deploy
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Clonar el repositorio
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      # 2️⃣ Configurar llave SSH
       - name: Configurar llave SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-      # 3️⃣ Copiar archivos al VPS
       - name: Copiar archivos al VPS
         run: |
           rsync -avz --delete \
@@ -29,22 +26,19 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
-      # 4️⃣ Ejecutar deploy Blue-Green automáticamente
       - name: Ejecutar deploy Blue-Green en VPS
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
         run: |
           ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
 
-            # Variables de entorno
-            export DATABASE_URL='${{ secrets.DATABASE_URL }}'
-            export K6_CLOUD_TOKEN='${{ secrets.K6_CLOUD_TOKEN }}'
+            # Pasar variables de entorno al script
+            export DATABASE_URL='$DATABASE_URL'
+            export K6_CLOUD_TOKEN='$K6_CLOUD_TOKEN'
 
-            # ⚡ Asegurar directorio nginx y archivo ACTIVE
-            mkdir -p nginx
-            touch nginx/ACTIVE
-            chmod 664 nginx/ACTIVE
-
-            # Ejecutar script de despliegue automático (sin argumentos)
-            bash PWA-server/deploy_blue_green.sh
+            # Ejecutar deploy blue-green
+            bash -x PWA-server/deploy_blue_green.sh
           "
