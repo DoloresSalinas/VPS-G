@@ -60,24 +60,34 @@ jobs:
       - name: Listar contenedores en VPS
         run: ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps"
 
-      - name: Verify Blue-Green deployment
+      - name: Verificar despliegue Blue/Green
         run: |
-          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s <<'EOF'
-            ACTIVE_COLOR=$(cat nginx/ACTIVE)
-            PORT=$([ "$ACTIVE_COLOR" = "blue" ] && echo 3001 || echo 3002)
-            echo "Verificando despliegue en color $ACTIVE_COLOR, puerto $PORT..."
-            
-            # Esperar hasta 30 segundos a que el contenedor responda
-            for i in {1..30}; do
-              STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT || echo "000")
-              if [ "$STATUS" = "200" ]; then
-                echo "✅ Despliegue OK"
-                exit 0
-              fi
-              sleep 1
-            done
+          set -e
       
-            echo "❌ El contenedor $ACTIVE_COLOR no respondió después de 30 segundos."
+          # Configuración
+          DEPLOY_COLOR="${{ github.event.inputs.color }}"  # O el color que estés desplegando
+          ACTIVE_COLOR="${DEPLOY_COLOR:-blue}"
+          PORT=$([ "$ACTIVE_COLOR" = "blue" ] && echo 3001 || echo 3002)
+      
+          echo "Verificando despliegue en color $ACTIVE_COLOR, puerto $PORT..."
+      
+          # Comprobar si el contenedor está corriendo
+          CONTAINER_NAME="vps-g-app-$ACTIVE_COLOR"
+          if ! ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no user@host "docker ps --filter name=$CONTAINER_NAME --format '{{.Names}}'" | grep -q "$CONTAINER_NAME"; then
+            echo "❌ Contenedor $CONTAINER_NAME no está corriendo."
             exit 1
-          EOF
-
+          fi
+      
+          # Esperar hasta que el contenedor responda
+          echo "-> Esperando a que $CONTAINER_NAME responda en http://127.0.0.1:$PORT ..."
+          while true; do
+            STATUS=$(ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no user@host \
+              "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT || echo '000'")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ $CONTAINER_NAME respondió correctamente!"
+              break
+            fi
+            echo "Esperando... (estado actual: $STATUS)"
+            sleep 5
+          done
+        shell: bash
