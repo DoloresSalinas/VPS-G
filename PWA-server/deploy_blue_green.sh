@@ -113,8 +113,9 @@ for i in {1..30}; do
   sleep 3
 done
 
-# Verificar que el contenedor esté corriendo
-if ! docker ps | grep -q "$CONTAINER_NAME"; then
+# Verificar que el contenedor esté corriendo de forma robusta
+RUNNING="$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null || echo false)"
+if [ "$RUNNING" != "true" ]; then
   echo "ERROR: El contenedor $CONTAINER_NAME no está corriendo"
   docker logs "$CONTAINER_NAME" || true
   exit 1
