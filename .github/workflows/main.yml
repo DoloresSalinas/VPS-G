@@ -15,22 +15,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Verify application
+      - name: Verify server structure
         run: |
-          # Verificación básica sin tests
-          echo "Verificando estructura de la aplicación..."
-          [ -f package.json ] && echo "✓ package.json encontrado" || exit 1
-          [ -f index.js ] && echo "✓ index.js encontrado" || exit 1
-          echo "Aplicación verificada correctamente"
+          echo "Verificando PWA-server..."
+          [ -f PWA-server/package.json ] || exit 1
+          [ -f PWA-server/src/index.js ] || exit 1
+          echo "OK"
 
   docker-build:
     needs: build
@@ -90,15 +80,28 @@ jobs:
             # Pull latest code
             git pull origin main
             
-            # Ensure scripts are executable
-            chmod +x Scripts/*.sh
-            chmod +x nginx/*.sh
+            chmod +x PWA-server/deploy_blue_green.sh
+            chmod +x nginx/*.sh || true
             
             # Construct image name (convert to lowercase)
             REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
             IMAGE_TAG="ghcr.io/$REPO_LOWER:${{ github.sha }}"
             
             # Deploy using blue-green strategy with environment variables
-            DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-            K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}" \
-            bash Scripts/deploy_blue_green.sh "$IMAGE_TAG"
+            export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            export K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}"
+            export REGISTRY_USER="${{ github.actor }}"
+            export REGISTRY_TOKEN="${{ secrets.CR_PAT }}"
+            bash PWA-server/deploy_blue_green.sh "$IMAGE_TAG"
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Smoke test /health
+        run: |
+          URL="http://${{ secrets.SSH_HOST }}"
+          echo "Probing $URL/health"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
+          [ "$STATUS" = "200" ] || { echo "Health failed with $STATUS"; exit 1; }
+          echo "OK"
