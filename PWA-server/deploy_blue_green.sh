@@ -7,30 +7,24 @@ IMAGE_TAG="$(echo "$IMAGE_TAG" | tr '[:upper:]' '[:lower:]')"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_BASE="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_CONF_DIR="$APP_BASE/nginx/confs"
-REPO_UP_BLUE="$REPO_CONF_DIR/upstream.blue.conf"
-REPO_UP_GREEN="$REPO_CONF_DIR/upstream.green.conf"
-UPSTREAM_DIR="/etc/nginx/vps-g"
-UP_BLUE="$UPSTREAM_DIR/upstream.blue.conf"
-UP_GREEN="$UPSTREAM_DIR/upstream.green.conf"
-ACTIVE_LINK="$UPSTREAM_DIR/upstream.active.conf"
+BLUE_CONF="$REPO_CONF_DIR/proxy.blue.conf"
+GREEN_CONF="$REPO_CONF_DIR/proxy.green.conf"
+ACTIVE_LINK="$REPO_CONF_DIR/active.conf"
 
 echo "Desplegando imagen: $IMAGE_TAG"
 
-if [ ! -f "$REPO_UP_BLUE" ] || [ ! -f "$REPO_UP_GREEN" ]; then
-  echo "ERROR: Missing upstream templates in $REPO_CONF_DIR"
-  echo "Expected: $REPO_UP_BLUE and $REPO_UP_GREEN"
+if [ ! -f "$BLUE_CONF" ] || [ ! -f "$GREEN_CONF" ]; then
+  echo "ERROR: Missing Nginx proxy templates in $REPO_CONF_DIR"
+  echo "Expected: $BLUE_CONF and $GREEN_CONF"
   exit 1
 fi
-sudo mkdir -p "$UPSTREAM_DIR"
-sudo cp "$REPO_UP_BLUE" "$UP_BLUE"
-sudo cp "$REPO_UP_GREEN" "$UP_GREEN"
 
 ACTIVE_COLOR="none"
-if sudo test -L "$ACTIVE_LINK"; then
-  TARGET="$(sudo readlink -f "$ACTIVE_LINK" || true)"
-  if [[ "$TARGET" == "$UP_BLUE" ]]; then
+if test -L "$ACTIVE_LINK"; then
+  TARGET="$(readlink -f "$ACTIVE_LINK" || true)"
+  if [[ "$TARGET" == "$BLUE_CONF" ]]; then
     ACTIVE_COLOR="blue"
-  elif [[ "$TARGET" == "$UP_GREEN" ]]; then
+  elif [[ "$TARGET" == "$GREEN_CONF" ]]; then
     ACTIVE_COLOR="green"
   fi
 fi
@@ -127,19 +121,11 @@ if ! docker ps | grep -q "$CONTAINER_NAME"; then
 fi
 
 echo "Actualizando configuración de Nginx..."
-sudo ln -sfn "$([ "$DEPLOY_COLOR" == "blue" ] && echo "$UP_BLUE" || echo "$UP_GREEN")" "$ACTIVE_LINK"
+ln -sfn "$([ "$DEPLOY_COLOR" == "blue" ] && echo "$BLUE_CONF" || echo "$GREEN_CONF")" "$ACTIVE_LINK"
 if ! sudo test -f "/etc/nginx/conf.d/vps-g.conf"; then
-  sudo tee "/etc/nginx/conf.d/vps-g.conf" >/dev/null <<'EOF'
-include /etc/nginx/vps-g/upstream.active.conf;
-server {
-    listen 80 default_server;
-    server_name _;
-    location / {
-        proxy_pass http://backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
+  # Crear una sola vez el include hacia el archivo activo dentro del repo
+  sudo tee "/etc/nginx/conf.d/vps-g.conf" >/dev/null <<EOF
+include $ACTIVE_LINK;
 EOF
 fi
 sudo nginx -t
