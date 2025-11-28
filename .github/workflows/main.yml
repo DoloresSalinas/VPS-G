@@ -114,6 +114,24 @@ jobs:
           script: |
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
+            mkdir -p "$HOME/app/PWA-server" "$HOME/app/nginx/confs"
+            
+            # Fallback: descargar archivos si no existen
+            if [ ! -f PWA-server/deploy_blue_green.sh ]; then
+              RAW_SCRIPT_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/PWA-server/deploy_blue_green.sh"
+              echo "Descargando deploy_blue_green.sh desde $RAW_SCRIPT_URL"
+              curl -fsSL "$RAW_SCRIPT_URL" -o PWA-server/deploy_blue_green.sh
+            fi
+            if [ ! -f nginx/confs/proxy.blue.conf ]; then
+              RAW_BLUE_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/nginx/confs/proxy.blue.conf"
+              echo "Descargando proxy.blue.conf desde $RAW_BLUE_URL"
+              curl -fsSL "$RAW_BLUE_URL" -o nginx/confs/proxy.blue.conf
+            fi
+            if [ ! -f nginx/confs/proxy.green.conf ]; then
+              RAW_GREEN_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/nginx/confs/proxy.green.conf"
+              echo "Descargando proxy.green.conf desde $RAW_GREEN_URL"
+              curl -fsSL "$RAW_GREEN_URL" -o nginx/confs/proxy.green.conf
+            fi
             chmod +x PWA-server/deploy_blue_green.sh
             
             # Construct image name (convert to lowercase)
