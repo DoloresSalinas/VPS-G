@@ -4,7 +4,6 @@ const pool = require("./db");
 const authRoutes = require("./routes/auth");
 const { verifyToken } = require("./middleware/auth");
 
-// 💡 CORRECCIÓN CRÍTICA: Definir APP_COLOR y PORT al inicio
 const APP_COLOR = process.env.APP_COLOR || 'default';
 const PORT = process.env.PORT || 3001;
 
