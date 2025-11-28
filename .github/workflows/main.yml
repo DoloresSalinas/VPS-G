@@ -52,7 +52,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.CR_PAT }}  # ← Usa el PAT en lugar de GITHUB_TOKEN
+          password: ${{ secrets.CR_PAT }}
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -64,7 +64,6 @@ jobs:
             ghcr.io/${{ steps.vars.outputs.REPO_LOWER }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
   deploy:
     needs: docker-build
     runs-on: ubuntu-latest
@@ -74,12 +73,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Lowercase repository name
-        id: vars
-        run: |
-          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "REPO_LOWER=$REPO_LOWER" >> $GITHUB_OUTPUT
-      
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -87,22 +80,22 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 2922
-          envs:
-            DATABASE_URL: ${{ secrets.DATABASE_URL }}
-            K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
-            IMAGE_TAG: ghcr.io/${{ steps.vars.outputs.REPO_LOWER }}:${{ github.sha }}
           script: |
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
             
-            # Pull latest code and scripts
-            git pull origin main || true
+            # Pull latest code
+            git pull origin main
             
             # Ensure scripts are executable
             chmod +x Scripts/*.sh
             chmod +x nginx/*.sh
             
-            # Deploy using blue-green strategy
-            export DATABASE_URL="$DATABASE_URL"
-            export K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN"
+            # Construct image name (convert to lowercase)
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE_TAG="ghcr.io/$REPO_LOWER:${{ github.sha }}"
+            
+            # Deploy using blue-green strategy with environment variables
+            DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}" \
             bash Scripts/deploy_blue_green.sh "$IMAGE_TAG"
