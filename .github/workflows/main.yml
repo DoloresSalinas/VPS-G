@@ -115,21 +115,19 @@ jobs:
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
             mkdir -p "$HOME/app/PWA-server" "$HOME/app/nginx/confs"
-            
             chmod +x PWA-server/deploy_blue_green.sh
             
             # Construct image name (convert to lowercase)
             REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
             IMAGE_TAG="ghcr.io/$REPO_LOWER:${{ github.sha }}"
             
-            # Deploy using blue-green strategy with environment variables (preserve env for sudo)
-            echo "${{ secrets.SSH_SUDO_PASS }}" | sudo -SE env \
-              DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-              JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-              K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}" \
-              REGISTRY_USER="${{ github.actor }}" \
-              REGISTRY_TOKEN="${{ secrets.CR_PAT }}" \
-              bash PWA-server/deploy_blue_green.sh "$IMAGE_TAG"
+            # Deploy using blue-green strategy with environment variables
+            DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}" \
+            REGISTRY_USER="${{ github.actor }}" \
+            REGISTRY_TOKEN="${{ secrets.CR_PAT }}" \
+            bash PWA-server/deploy_blue_green.sh "$IMAGE_TAG"
 
   smoke:
     needs: deploy

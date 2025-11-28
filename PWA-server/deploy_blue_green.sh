@@ -28,7 +28,7 @@ if test -L "$ACTIVE_LINK"; then
     ACTIVE_COLOR="green"
   fi
 fi
-if [ "$ACTIVE_COLOR" = "none" ] && sudo test -f "/etc/nginx/conf.d/vps-g.conf"; then
+if [ "$ACTIVE_COLOR" = "none" ] && test -f "/etc/nginx/conf.d/vps-g.conf"; then
   if grep -q "127.0.0.1:3001" "/etc/nginx/conf.d/vps-g.conf"; then
     ACTIVE_COLOR="blue"
   elif grep -q "127.0.0.1:3002" "/etc/nginx/conf.d/vps-g.conf"; then
@@ -124,11 +124,6 @@ echo "Actualizando configuración de Nginx..."
 ln -sfn "$([ "$DEPLOY_COLOR" == "blue" ] && echo "$BLUE_CONF" || echo "$GREEN_CONF")" "$ACTIVE_LINK"
 SUDO=""
 [ "$(id -u)" -ne 0 ] && SUDO="sudo"
-if ! $SUDO test -f "/etc/nginx/conf.d/vps-g.conf"; then
-  $SUDO tee "/etc/nginx/conf.d/vps-g.conf" >/dev/null <<EOF
-include $ACTIVE_LINK;
-EOF
-fi
 $SUDO nginx -t
 $SUDO systemctl reload nginx
 
