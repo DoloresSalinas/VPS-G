@@ -14,35 +14,75 @@ app.use(express.json());
 // Rutas de autenticación
 app.use("/api", authRoutes);
 
-app.get('/', (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <title>PWA Server Status</title>
-            <style>
-                body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-                footer { padding: 10px; border-top: 1px solid #ccc; margin-top: 20px; }
-                .color-indicator { 
-                    font-size: 1.2em; 
-                    padding: 8px 15px; 
-                    border-radius: 5px; 
-                    display: inline-block;
-                    background-color: ${APP_COLOR === 'blue' ? '#3b82f6' : APP_COLOR === 'green' ? '#10b981' : '#f59e0b'};
-                    color: white;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Mi Aplicación PWA</h1>
-            <p>Esta es la versión desplegada y funcionando.</p>
-            <footer>
-                Ambiente Activo: <b class="color-indicator">${APP_COLOR.toUpperCase()}</b>
-            </footer>
-        </body>
-        </html>
-    `);
+app.get('/', async (req, res) => {
+    try {
+        // Obtener usuarios de la BD
+        const result = await pool.query('SELECT * FROM usuarios');
+        const usuarios = result.rows;
+
+        // Crear filas HTML
+        const htmlUsuarios = usuarios.map(u => `
+            <tr>
+                <td>${u.id}</td>
+                <td>${u.nombre}</td>
+                <td>${u.email}</td>
+            </tr>
+        `).join("");
+
+        res.send(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <title>PWA Server Status</title>
+                <style>
+                    body { font-family: sans-serif; margin: 40px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                    th { background: #eee; }
+                    .color-indicator { 
+                        font-size: 1.2em; 
+                        padding: 6px 12px; 
+                        border-radius: 5px; 
+                        background-color: ${APP_COLOR === 'blue' ? '#3b82f6' :
+                            APP_COLOR === 'green' ? '#10b981' : '#f59e0b'};
+                        color: white;
+                        display: inline-block;
+                        margin-bottom: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+
+                <h1>Mi Aplicación PWA</h1>
+                <p>Esta es la versión desplegada y funcionando.</p>
+
+                <div class="color-indicator">Ambiente: ${APP_COLOR.toUpperCase()}</div>
+
+                <h2>Usuarios Registrados</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${htmlUsuarios}
+                    </tbody>
+                </table>
+
+            </body>
+            </html>
+        `);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Error al obtener usuarios");
+    }
 });
+
 
 app.get("/ping/example", (req, res) => {
     res.json({ message: "Despliegue automático OK para realizar pruebas", environment: APP_COLOR });
