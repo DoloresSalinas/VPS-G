@@ -63,6 +63,15 @@ echo "Deteniendo contenedor existente: $CONTAINER_NAME"
 docker stop "$CONTAINER_NAME" 2>/dev/null || true
 docker rm "$CONTAINER_NAME" 2>/dev/null || true
 
+# Liberar el puerto objetivo si está ocupado por otro contenedor
+echo "Verificando ocupación del puerto ${APP_PORT}..."
+PORT_CONTAINER_ID=$(docker ps --format '{{.ID}} {{.Ports}}' | awk -v p=":${APP_PORT}->" '{ if ($2 ~ p) print $1 }')
+if [ -n "$PORT_CONTAINER_ID" ]; then
+  echo "Puerto ${APP_PORT} ocupado por contenedor $PORT_CONTAINER_ID. Deteniendo..."
+  docker stop "$PORT_CONTAINER_ID" 2>/dev/null || true
+  docker rm "$PORT_CONTAINER_ID" 2>/dev/null || true
+fi
+
 # Run container con variables de entorno
 echo "Iniciando nuevo contenedor: $CONTAINER_NAME"
 docker run -d --name "$CONTAINER_NAME" --restart=unless-stopped \
