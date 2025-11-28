@@ -29,22 +29,23 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
-      # 4️⃣ Ejecutar deploy blue-green en VPS
+# 4️⃣ Ejecutar deploy Blue-Green
       - name: Ejecutar deploy Blue-Green
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
         run: |
           ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<'EOF'
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<'EOF'
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
             
             # Pasar variables de entorno al script
-            export DATABASE_URL="$DATABASE_URL"
-            export K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN"
+            export DATABASE_URL="${DATABASE_URL}"
+            export K6_CLOUD_TOKEN="${K6_CLOUD_TOKEN}"
             
-            # Ejecutar deploy blue-green
-            bash -x PWA-server/deploy_blue_green.sh
+            # EJECUCIÓN CORREGIDA la ruta (asume que el script está en la raíz de app/)
+            # Si el script está realmente en PWA-server/, usa: bash -x PWA-server/deploy_blue_green.sh
+            bash -x deploy_blue_green.sh 
           EOF
 
