@@ -123,11 +123,28 @@ fi
 echo "Actualizando configuración de Nginx..."
 ln -sfn "$([ "$DEPLOY_COLOR" == "blue" ] && echo "$BLUE_CONF" || echo "$GREEN_CONF")" "$ACTIVE_LINK"
 SUDO=""
-[ "$(id -u)" -ne 0 ] && SUDO="sudo"
-$SUDO mkdir -p /etc/nginx/conf.d
-$SUDO ln -sfn "$ACTIVE_LINK" "/etc/nginx/conf.d/vps-g.conf"
-$SUDO nginx -t
-$SUDO systemctl reload nginx
+if [ "$(id -u)" -ne 0 ]; then
+  if sudo -n true 2>/dev/null; then
+    SUDO="sudo -n"
+  elif [ -n "${SUDO_PASSWORD:-}" ]; then
+    SUDO="sudo -S"
+  else
+    SUDO="sudo -n"
+  fi
+fi
+
+run_root() {
+  if [ -n "$SUDO" ]; then
+    echo "${SUDO_PASSWORD:-}" | $SUDO "$@"
+  else
+    "$@"
+  fi
+}
+
+run_root mkdir -p /etc/nginx/conf.d
+run_root ln -sfn "$ACTIVE_LINK" "/etc/nginx/conf.d/vps-g.conf"
+run_root nginx -t
+run_root systemctl reload nginx
 
 echo "✅ Despliegue Blue-Green completado. Color activo: ${DEPLOY_COLOR}"
 

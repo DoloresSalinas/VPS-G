@@ -131,6 +131,7 @@ jobs:
             K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}" \
             REGISTRY_USER="${{ github.actor }}" \
             REGISTRY_TOKEN="${{ secrets.CR_PAT }}" \
+            SUDO_PASSWORD="${{ secrets.SUDO_PASSWORD }}" \
             bash "$SCRIPT_PATH" "$IMAGE_TAG"
 
   smoke:
