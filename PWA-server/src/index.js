@@ -53,6 +53,10 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', color: APP_COLOR });
 });
 
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok', color: APP_COLOR });
+});
+
 // Ruta protegida de prueba
 app.get("/api/protected", verifyToken, (req, res) => {
     res.json({ message: "Ruta protegida", user: req.user });
