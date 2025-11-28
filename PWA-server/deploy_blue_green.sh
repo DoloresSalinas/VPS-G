@@ -11,6 +11,15 @@ BLUE_CONF="$REPO_CONF_DIR/proxy.blue.conf"
 GREEN_CONF="$REPO_CONF_DIR/proxy.green.conf"
 ACTIVE_LINK="$REPO_CONF_DIR/active.conf"
 
+# Cargar variables desde .env si existe (evita export manual en sesiones SSH)
+ENV_FILE="$APP_BASE/.env"
+if [ -f "$ENV_FILE" ]; then
+  echo "Cargando variables desde $ENV_FILE"
+  set -a
+  . "$ENV_FILE"
+  set +a
+fi
+
 echo "Desplegando imagen: $IMAGE_TAG"
 
 if [ ! -f "$BLUE_CONF" ] || [ ! -f "$GREEN_CONF" ]; then
@@ -122,14 +131,15 @@ fi
 
 echo "Actualizando configuración de Nginx..."
 ln -sfn "$([ "$DEPLOY_COLOR" == "blue" ] && echo "$BLUE_CONF" || echo "$GREEN_CONF")" "$ACTIVE_LINK"
-if ! sudo test -f "/etc/nginx/conf.d/vps-g.conf"; then
-  # Crear una sola vez el include hacia el archivo activo dentro del repo
-  sudo tee "/etc/nginx/conf.d/vps-g.conf" >/dev/null <<EOF
+SUDO=""
+[ "$(id -u)" -ne 0 ] && SUDO="sudo"
+if ! $SUDO test -f "/etc/nginx/conf.d/vps-g.conf"; then
+  $SUDO tee "/etc/nginx/conf.d/vps-g.conf" >/dev/null <<EOF
 include $ACTIVE_LINK;
 EOF
 fi
-sudo nginx -t
-sudo systemctl reload nginx
+$SUDO nginx -t
+$SUDO systemctl reload nginx
 
 echo "✅ Despliegue Blue-Green completado. Color activo: ${DEPLOY_COLOR}"
 
