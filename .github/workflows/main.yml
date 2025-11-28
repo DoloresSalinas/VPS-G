@@ -90,7 +90,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 2922
           source: "PWA-server/deploy_blue_green.sh"
-          target: "/home/${{ secrets.SSH_USER }}/app/PWA-server/"
+          target: "/home/${{ secrets.SSH_USER }}/app/"
           overwrite: true
 
       - name: Upload Nginx confs
@@ -101,7 +101,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 2922
           source: "nginx/confs/*"
-          target: "/home/${{ secrets.SSH_USER }}/app/nginx/confs/"
+          target: "/home/${{ secrets.SSH_USER }}/app/"
           overwrite: true
       
       - name: Deploy to VPS
@@ -115,7 +115,11 @@ jobs:
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
             mkdir -p "$HOME/app/PWA-server" "$HOME/app/nginx/confs"
-            chmod +x PWA-server/deploy_blue_green.sh
+            SCRIPT_PATH="PWA-server/deploy_blue_green.sh"
+            if [ ! -f "$SCRIPT_PATH" ] && [ -f "PWA-server/PWA-server/deploy_blue_green.sh" ]; then
+              SCRIPT_PATH="PWA-server/PWA-server/deploy_blue_green.sh"
+            fi
+            chmod +x "$SCRIPT_PATH"
             
             # Construct image name (convert to lowercase)
             REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
@@ -127,7 +131,7 @@ jobs:
             K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}" \
             REGISTRY_USER="${{ github.actor }}" \
             REGISTRY_TOKEN="${{ secrets.CR_PAT }}" \
-            bash PWA-server/deploy_blue_green.sh "$IMAGE_TAG"
+            bash "$SCRIPT_PATH" "$IMAGE_TAG"
 
   smoke:
     needs: deploy
