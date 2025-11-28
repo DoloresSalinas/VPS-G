@@ -2,7 +2,7 @@ name: Deploy VPS Azure Blue-Green
 
 on:
   workflow_run:
-    workflows: ["Deploy Docker Image"]
+    workflows: ["Build and Push Docker Image"]
     types: [ "completed" ]
 
 jobs:
@@ -13,6 +13,12 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Lowercase repository name
+        id: vars
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO_LOWER=$REPO_LOWER" >> $GITHUB_OUTPUT
 
       - name: Prepare remote directory
         uses: appleboy/ssh-action@v1.0.0
@@ -62,7 +68,8 @@ jobs:
           envs:
             DATABASE_URL: ${{ secrets.DATABASE_URL }}
             K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
-            IMAGE: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
+            REGISTRY_USER: ${{ github.actor }}
+            REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           script: |
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
@@ -74,7 +81,11 @@ jobs:
             # Set environment variables
             export DATABASE_URL="$DATABASE_URL"
             export K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN"
+            export REGISTRY_USER="$REGISTRY_USER"
+            export REGISTRY_TOKEN="$REGISTRY_TOKEN"
             
+            # Construct image name
+            IMAGE="ghcr.io/${{ steps.vars.outputs.REPO_LOWER }}:${{ github.sha }}"
             echo "Deploying image: $IMAGE"
             
             # Execute blue-green deployment

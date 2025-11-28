@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE_TAG="${1:-ghcr.io/owner/repo:latest}"
-# Normalize image reference to lowercase to satisfy GHCR requirements
+IMAGE_TAG="${1:-local-build}"
+# Asegurar que la imagen esté en minúsculas
 IMAGE_TAG="$(echo "$IMAGE_TAG" | tr '[:upper:]' '[:lower:]')"
 
 # Paths Nginx - ajustados para tu estructura actual
@@ -10,7 +10,8 @@ NGINX_DIR="/home/azureuser/app/nginx"
 ACTIVE_LINK="$NGINX_DIR/active.conf"
 BLUE_CONF="$NGINX_DIR/blue.conf"
 GREEN_CONF="$NGINX_DIR/green.conf"
-UPSTREAM_DIR="/etc/nginx/conf.d"
+
+echo "Desplegando imagen: $IMAGE_TAG"
 
 # Preflight: ensure nginx files exist in app directory
 if [ ! -f "$BLUE_CONF" ] || [ ! -f "$GREEN_CONF" ]; then
@@ -49,21 +50,27 @@ fi
 
 echo "Activo: $ACTIVE_COLOR, desplegando: $DEPLOY_COLOR, contenedor: $CONTAINER_NAME, puerto: $APP_PORT"
 
-# Login a GHCR (si se proporcionan credenciales)
-if [ -n "${REGISTRY_USER:-}" ] && [ -n "${REGISTRY_TOKEN:-}" ]; then
+# Login a GHCR (solo si no es local-build y tenemos credenciales)
+if [[ "$IMAGE_TAG" != "local-build" ]] && [ -n "${REGISTRY_USER:-}" ] && [ -n "${REGISTRY_TOKEN:-}" ]; then
+  echo "Iniciando sesión en GHCR..."
   echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
 fi
 
-# Pull de la imagen (si viene de registry)
-if [[ "$IMAGE_TAG" != local-build ]]; then
+# Pull de la imagen (si viene de registry y no es local-build)
+if [[ "$IMAGE_TAG" != "local-build" ]]; then
+  echo "Descargando imagen: $IMAGE_TAG"
   docker pull "$IMAGE_TAG"
+else
+  echo "Usando imagen local-build, omitiendo pull"
 fi
 
 # Parar/eliminar previo del color de despliegue si existe
+echo "Deteniendo contenedor existente: $CONTAINER_NAME"
 docker stop "$CONTAINER_NAME" 2>/dev/null || true
 docker rm "$CONTAINER_NAME" 2>/dev/null || true
 
 # Run container con variables de entorno
+echo "Iniciando nuevo contenedor: $CONTAINER_NAME"
 docker run -d --name "$CONTAINER_NAME" --restart=unless-stopped \
   -p 127.0.0.1:${APP_PORT}:3001 \
   -e DATABASE_URL="${DATABASE_URL:-}" \
@@ -79,6 +86,11 @@ for i in {1..30}; do
      curl -f -s -o /dev/null --max-time 2 "http://127.0.0.1:${APP_PORT}/api/health"; then
     echo "Health-check OK en puerto ${APP_PORT}"
     break
+  fi
+  if [ $i -eq 30 ]; then
+    echo "ERROR: Health check falló después de 30 intentos"
+    docker logs "$CONTAINER_NAME" || true
+    exit 1
   fi
   echo "Esperando servicio en puerto ${APP_PORT} (intento ${i}/30)..."
   sleep 3
@@ -118,10 +130,11 @@ fi
 
 echo "✅ Despliegue Blue-Green completado. Color activo: ${DEPLOY_COLOR}"
 
-# Limpiar contenedor anterior (opcional, comentado por seguridad)
+# Limpiar contenedor anterior (opcional)
 if [ "$ACTIVE_COLOR" != "none" ]; then
   OLD_CONTAINER="app-${ACTIVE_COLOR}"
-  echo "Contenedor anterior: $OLD_CONTAINER (puede ser eliminado manualmente si es necesario)"
+  echo "Contenedor anterior: $OLD_CONTAINER (se mantiene para rollback)"
+  # Para eliminarlo automáticamente, descomenta:
   # docker stop "$OLD_CONTAINER" 2>/dev/null || true
   # docker rm "$OLD_CONTAINER" 2>/dev/null || true
 fi
