@@ -27,6 +27,13 @@ if sudo test -f "/etc/nginx/sites-available/default"; then
     ACTIVE_COLOR="green"
   fi
 fi
+if [ "$ACTIVE_COLOR" = "none" ] && sudo test -f "/etc/nginx/conf.d/vps-g.conf"; then
+  if grep -q "127.0.0.1:3001" "/etc/nginx/conf.d/vps-g.conf"; then
+    ACTIVE_COLOR="blue"
+  elif grep -q "127.0.0.1:3002" "/etc/nginx/conf.d/vps-g.conf"; then
+    ACTIVE_COLOR="green"
+  fi
+fi
 
 # Decidir color de despliegue (el inactivo)
 if [ "$ACTIVE_COLOR" == "blue" ]; then
