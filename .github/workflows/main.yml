@@ -52,7 +52,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.CR_PAT }}  # ← Usa el PAT en lugar de GITHUB_TOKEN
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
