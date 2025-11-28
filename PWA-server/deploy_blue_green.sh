@@ -11,15 +11,6 @@ BLUE_CONF="$REPO_CONF_DIR/proxy.blue.conf"
 GREEN_CONF="$REPO_CONF_DIR/proxy.green.conf"
 ACTIVE_LINK="$REPO_CONF_DIR/active.conf"
 
-# Cargar variables desde .env si existe (evita export manual en sesiones SSH)
-ENV_FILE="$APP_BASE/.env"
-if [ -f "$ENV_FILE" ]; then
-  echo "Cargando variables desde $ENV_FILE"
-  set -a
-  . "$ENV_FILE"
-  set +a
-fi
-
 echo "Desplegando imagen: $IMAGE_TAG"
 
 if [ ! -f "$BLUE_CONF" ] || [ ! -f "$GREEN_CONF" ]; then
