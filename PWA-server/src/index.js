@@ -11,8 +11,12 @@ app.use(express.json());
 // Rutas de autenticación
 app.use("/api", authRoutes);
 
-app.get("/", (req, res) => {
-  res.send("Servidor corriendo en la raíz /");
+app.get('/', (req, res) => {
+    res.send(`
+        <h1>Mi Aplicación PWA</h1>
+        <p>Esta es la versión desplegada.</p>
+        <footer>Ambiente Activo: <b>${APP_COLOR.toUpperCase()}</b></footer>
+    `);
 });
 
 app.get("/ping/example", (req, res) => {
@@ -164,6 +168,7 @@ app.get('/reservations', async (req, res) => {
 });
 
 // Iniciar servidor
+const APP_COLOR = process.env.APP_COLOR || 'default';
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://127.0.0.1:${PORT}`);
