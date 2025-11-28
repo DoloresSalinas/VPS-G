@@ -1,71 +1,81 @@
 name: Deploy VPS Azure Blue-Green
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Deploy Docker Image"]
+    types: [ "completed" ]
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Clonar el repositorio
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2️⃣ Configurar la llave SSH
-      - name: Configurar llave SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p 2922 ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      - name: Prepare remote directory
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2922
+          script: |
+            mkdir -p /home/${{ secrets.SSH_USER }}/app
+            mkdir -p /home/${{ secrets.SSH_USER }}/app/nginx
 
-      # 3️⃣ Copiar archivos al VPS
-      - name: Copiar archivos al VPS
-        run: |
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no" \
-            ./ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
+      - name: Upload application files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2922
+          source: "."
+          target: "/home/${{ secrets.SSH_USER }}/app"
+          strip_components: 0
 
-      # 4️⃣ Configurar Nginx (solo primera vez)
-      - name: Configurar Nginx si es necesario
-        run: |
-          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<'EOF'
+      - name: Configure Nginx if needed
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2922
+          script: |
             if [ ! -f /etc/nginx/nginx.conf ] || [ ! -f /etc/nginx/conf.d/upstream.conf ]; then
-              echo "Configurando Nginx por primera vez..."
+              echo "Configuring Nginx for the first time..."
               chmod +x /home/${{ secrets.SSH_USER }}/app/Scripts/setup-nginx.sh
               /home/${{ secrets.SSH_USER }}/app/Scripts/setup-nginx.sh
             else
-              echo "Nginx ya está configurado"
+              echo "Nginx is already configured"
             fi
-          EOF
 
-      # 5️⃣ Dar permisos de ejecución a los scripts
-      - name: Dar permisos de ejecución
-        run: |
-          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "chmod +x /home/${{ secrets.SSH_USER }}/app/Scripts/*.sh"
-
-      # 6️⃣ Ejecutar deploy Blue-Green
-      - name: Ejecutar deploy Blue-Green
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
-        run: |
-          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<'EOF'
+      - name: Set execute permissions and deploy
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2922
+          envs:
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+            K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+            IMAGE: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
+          script: |
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
             
-            # Pasar variables de entorno
+            # Set execution permissions
+            chmod +x Scripts/*.sh
+            chmod +x nginx/*.sh
+            
+            # Set environment variables
             export DATABASE_URL="$DATABASE_URL"
             export K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN"
             
-            # Ejecutar despliegue Blue-Green
-            bash -x Scripts/deploy_blue_green.sh 
-          EOF
+            echo "Deploying image: $IMAGE"
+            
+            # Execute blue-green deployment
+            bash -x Scripts/deploy_blue_green.sh "$IMAGE"

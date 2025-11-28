@@ -1,40 +1,9 @@
-version: "3.9"
-
+version: '3.8'
 services:
-  # Servicio Blue
-  app-blue:
-    build:
-      context: ./PWA-server
-      dockerfile: Dockerfile
-    container_name: vps-g-app-blue
-    restart: always
+  app:
+    image: ${IMAGE:-local-build}
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - K6_CLOUD_TOKEN=${K6_CLOUD_TOKEN}
-      - APP_COLOR=blue
-      - PORT=3000
     ports:
-      - "3001:3000"  # Exponemos Blue en el puerto 3001
-    networks:
-      - appnet
-
-  # Servicio Green
-  app-green:
-    build:
-      context: ./PWA-server
-      dockerfile: Dockerfile
-    container_name: vps-g-app-green
-    restart: always
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - K6_CLOUD_TOKEN=${K6_CLOUD_TOKEN}
-      - APP_COLOR=green
-      - PORT=3000
-    ports:
-      - "3002:3000"  # Exponemos Green en el puerto 3002
-    networks:
-      - appnet
-
-networks:
-  appnet:
-    driver: bridge
+      - "3001"
