@@ -65,11 +65,13 @@ docker rm "$CONTAINER_NAME" 2>/dev/null || true
 
 # Liberar el puerto objetivo si está ocupado por otro contenedor
 echo "Verificando ocupación del puerto ${APP_PORT}..."
-PORT_CONTAINER_ID=$(docker ps --format '{{.ID}} {{.Ports}}' | awk -v p=":${APP_PORT}->" '{ if ($2 ~ p) print $1 }')
-if [ -n "$PORT_CONTAINER_ID" ]; then
-  echo "Puerto ${APP_PORT} ocupado por contenedor $PORT_CONTAINER_ID. Deteniendo..."
-  docker stop "$PORT_CONTAINER_ID" 2>/dev/null || true
-  docker rm "$PORT_CONTAINER_ID" 2>/dev/null || true
+# Detecta cualquier contenedor (activo o detenido) que publique el puerto APP_PORT en IPv4 o IPv6
+PORT_CONTAINERS=$(docker ps -a --format '{{.ID}} {{.Ports}}' | grep -E "(0\.0\.0\.0|:::):${APP_PORT}->" | awk '{print $1}')
+if [ -n "$PORT_CONTAINERS" ]; then
+  echo "Encontrados contenedores usando puerto ${APP_PORT}: $PORT_CONTAINERS. Eliminando..."
+  for cid in $PORT_CONTAINERS; do
+    docker rm -f "$cid" 2>/dev/null || true
+  done
 fi
 
 # Run container con variables de entorno
