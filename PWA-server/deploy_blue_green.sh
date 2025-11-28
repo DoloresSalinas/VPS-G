@@ -76,7 +76,7 @@ docker rm "$CONTAINER_NAME" 2>/dev/null || true
 # Liberar el puerto objetivo si está ocupado por otro contenedor
 echo "Verificando ocupación del puerto ${APP_PORT}..."
 # Detecta cualquier contenedor (activo o detenido) que publique el puerto APP_PORT en IPv4 o IPv6
-PORT_CONTAINERS=$(docker ps -a --format '{{.ID}} {{.Ports}}' | grep -E "(0\.0\.0\.0|:::):${APP_PORT}->" | awk '{print $1}')
+PORT_CONTAINERS=$(docker ps -a --format '{{.ID}} {{.Ports}}' | grep -E "(0\.0\.0\.0|:::):${APP_PORT}->" | awk '{print $1}' || true)
 if [ -n "$PORT_CONTAINERS" ]; then
   echo "Encontrados contenedores usando puerto ${APP_PORT}: $PORT_CONTAINERS. Eliminando..."
   for cid in $PORT_CONTAINERS; do
@@ -124,6 +124,8 @@ echo "Actualizando configuración de Nginx..."
 ln -sfn "$([ "$DEPLOY_COLOR" == "blue" ] && echo "$BLUE_CONF" || echo "$GREEN_CONF")" "$ACTIVE_LINK"
 SUDO=""
 [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+$SUDO mkdir -p /etc/nginx/conf.d
+$SUDO ln -sfn "$ACTIVE_LINK" "/etc/nginx/conf.d/vps-g.conf"
 $SUDO nginx -t
 $SUDO systemctl reload nginx
 
