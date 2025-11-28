@@ -29,6 +29,7 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
+
 # 4️⃣ Ejecutar deploy Blue-Green
       - name: Ejecutar deploy Blue-Green
         env:
@@ -44,8 +45,6 @@ jobs:
             export DATABASE_URL="${DATABASE_URL}"
             export K6_CLOUD_TOKEN="${K6_CLOUD_TOKEN}"
             
-            # EJECUCIÓN CORREGIDA la ruta (asume que el script está en la raíz de app/)
-            # Si el script está realmente en PWA-server/, usa: bash -x PWA-server/deploy_blue_green.sh
-            bash -x deploy_blue_green.sh 
+            # 💡 CORRECCIÓN DE LA RUTA:
+            bash -x PWA-server/deploy_blue_green.sh 
           EOF
-
