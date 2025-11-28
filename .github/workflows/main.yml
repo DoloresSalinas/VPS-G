@@ -70,6 +70,39 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Prepare remote directories
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2922
+          script: |
+            set -e
+            mkdir -p "$HOME/app/PWA-server" "$HOME/app/nginx/confs"
+
+      - name: Upload deploy script
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2922
+          source: "PWA-server/deploy_blue_green.sh"
+          target: "/home/${{ secrets.SSH_USER }}/app/PWA-server/"
+          overwrite: true
+
+      - name: Upload Nginx confs
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2922
+          source: "nginx/confs/*"
+          target: "/home/${{ secrets.SSH_USER }}/app/nginx/confs/"
+          overwrite: true
       
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
@@ -81,12 +114,7 @@ jobs:
           script: |
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
-            
-            # Pull latest code
-            git pull origin main
-            
             chmod +x PWA-server/deploy_blue_green.sh
-            chmod +x nginx/*.sh || true
             
             # Construct image name (convert to lowercase)
             REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
@@ -94,6 +122,7 @@ jobs:
             
             # Deploy using blue-green strategy with environment variables
             export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            export JWT_SECRET="${{ secrets.JWT_SECRET }}"
             export K6_CLOUD_TOKEN="${{ secrets.K6_CLOUD_TOKEN }}"
             export REGISTRY_USER="${{ github.actor }}"
             export REGISTRY_TOKEN="${{ secrets.CR_PAT }}"
