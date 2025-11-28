@@ -20,6 +20,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p 2922 ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       # 3️⃣ Copiar archivos al VPS
       - name: Copiar archivos al VPS
@@ -29,8 +30,28 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/app/
 
+      # 4️⃣ Configurar Nginx (solo primera vez)
+      - name: Configurar Nginx si es necesario
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<'EOF'
+            if [ ! -f /etc/nginx/nginx.conf ] || [ ! -f /etc/nginx/conf.d/upstream.conf ]; then
+              echo "Configurando Nginx por primera vez..."
+              chmod +x /home/${{ secrets.SSH_USER }}/app/Scripts/setup-nginx.sh
+              /home/${{ secrets.SSH_USER }}/app/Scripts/setup-nginx.sh
+            else
+              echo "Nginx ya está configurado"
+            fi
+          EOF
 
-# 4️⃣ Ejecutar deploy Blue-Green
+      # 5️⃣ Dar permisos de ejecución a los scripts
+      - name: Dar permisos de ejecución
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -p 2922 -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "chmod +x /home/${{ secrets.SSH_USER }}/app/Scripts/*.sh"
+
+      # 6️⃣ Ejecutar deploy Blue-Green
       - name: Ejecutar deploy Blue-Green
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -41,10 +62,10 @@ jobs:
             set -e
             cd /home/${{ secrets.SSH_USER }}/app
             
-            # Pasar variables de entorno al script
-            export DATABASE_URL="${DATABASE_URL}"
-            export K6_CLOUD_TOKEN="${K6_CLOUD_TOKEN}"
+            # Pasar variables de entorno
+            export DATABASE_URL="$DATABASE_URL"
+            export K6_CLOUD_TOKEN="$K6_CLOUD_TOKEN"
             
-            # 💡 CORRECCIÓN DE LA RUTA:
-            bash -x PWA-server/deploy_blue_green.sh 
+            # Ejecutar despliegue Blue-Green
+            bash -x Scripts/deploy_blue_green.sh 
           EOF
