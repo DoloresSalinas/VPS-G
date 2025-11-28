@@ -111,10 +111,16 @@ if ! docker ps | grep -q "$CONTAINER_NAME"; then
 fi
 
 echo "Actualizando configuración de Nginx..."
+NGINX_TARGET="/etc/nginx/sites-available/default"
+if ! sudo test -d "/etc/nginx/sites-available"; then
+  NGINX_TARGET="/etc/nginx/conf.d/vps-g.conf"
+  sudo mkdir -p "/etc/nginx/conf.d"
+fi
+
 if [ "$DEPLOY_COLOR" == "blue" ]; then
-  sudo cp "$BLUE_CONF" "/etc/nginx/sites-available/default"
+  sudo cp "$BLUE_CONF" "$NGINX_TARGET"
 else
-  sudo cp "$GREEN_CONF" "/etc/nginx/sites-available/default"
+  sudo cp "$GREEN_CONF" "$NGINX_TARGET"
 fi
 sudo nginx -t
 sudo systemctl reload nginx
