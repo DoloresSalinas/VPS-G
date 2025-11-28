@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "health": "node -e \"require('http').get('http://localhost:3001', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\""
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "build": "echo 'No build step needed for Node.js'",
+    "health": "node -e \"require('http').get('http://localhost:3001', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""
   },
   "author": "",
   "license": "ISC",
