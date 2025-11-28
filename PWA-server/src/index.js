@@ -23,7 +23,7 @@ app.get('/', async (req, res) => {
         // Crear filas HTML
         const htmlUsuarios = usuarios.map(u => `
             <tr>
-                <td>${u.id}</td>
+                <td>${u.id_us}</td>
                 <td>${u.nombre}</td>
                 <td>${u.email}</td>
             </tr>
