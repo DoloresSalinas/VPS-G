@@ -6,7 +6,7 @@ const { verifyToken } = require("./middleware/auth");
 
 // 💡 CORRECCIÓN CRÍTICA: Definir APP_COLOR y PORT al inicio
 const APP_COLOR = process.env.APP_COLOR || 'default';
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 const app = express();
 app.use(cors());
@@ -47,6 +47,10 @@ app.get('/', (req, res) => {
 
 app.get("/ping/example", (req, res) => {
     res.json({ message: "Despliegue automático OK para realizar pruebas", environment: APP_COLOR });
+});
+
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', color: APP_COLOR });
 });
 
 // Ruta protegida de prueba

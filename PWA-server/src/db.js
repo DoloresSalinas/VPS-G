@@ -1,7 +1,8 @@
 const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
-  connectionString: 'postgresql://postgres.tyxtcutpcakngtlbmhdz:L4L454Lin45jim3n3z%26@aws-0-us-east-1.pooler.supabase.com:6543/postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }

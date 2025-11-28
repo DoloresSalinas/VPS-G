@@ -2,14 +2,11 @@
 set -euo pipefail
 
 IMAGE_TAG="${1:-local-build}"
-# Asegurar que la imagen esté en minúsculas
 IMAGE_TAG="$(echo "$IMAGE_TAG" | tr '[:upper:]' '[:lower:]')"
 
-# Paths Nginx - ajustados para tu estructura actual
-NGINX_DIR="/home/azureuser/app/nginx"
-ACTIVE_LINK="$NGINX_DIR/active.conf"
-BLUE_CONF="$NGINX_DIR/blue.conf"
-GREEN_CONF="$NGINX_DIR/green.conf"
+NGINX_DIR="$HOME/app/nginx"
+BLUE_CONF="$NGINX_DIR/confs/proxy.blue.conf"
+GREEN_CONF="$NGINX_DIR/confs/proxy.green.conf"
 
 echo "Desplegando imagen: $IMAGE_TAG"
 
@@ -20,13 +17,11 @@ if [ ! -f "$BLUE_CONF" ] || [ ! -f "$GREEN_CONF" ]; then
   exit 1
 fi
 
-# Detección del color activo
 ACTIVE_COLOR="none"
-if [ -f "$ACTIVE_LINK" ]; then
-  CURRENT_ACTIVE=$(basename $(readlink -f "$ACTIVE_LINK" 2>/dev/null || echo ""))
-  if [[ "$CURRENT_ACTIVE" == "blue.conf" ]]; then
+if sudo test -f "/etc/nginx/sites-available/default"; then
+  if grep -q "127.0.0.1:3001" "/etc/nginx/sites-available/default"; then
     ACTIVE_COLOR="blue"
-  elif [[ "$CURRENT_ACTIVE" == "green.conf" ]]; then
+  elif grep -q "127.0.0.1:3002" "/etc/nginx/sites-available/default"; then
     ACTIVE_COLOR="green"
   fi
 fi
@@ -34,14 +29,13 @@ fi
 # Decidir color de despliegue (el inactivo)
 if [ "$ACTIVE_COLOR" == "blue" ]; then
   DEPLOY_COLOR="green"
-  APP_PORT=4001
+  APP_PORT=3002
   CONTAINER_NAME="app-green"
 elif [ "$ACTIVE_COLOR" == "green" ]; then
   DEPLOY_COLOR="blue"
   APP_PORT=3001
   CONTAINER_NAME="app-blue"
 else
-  # Primer despliegue: usar blue
   DEPLOY_COLOR="blue"
   APP_PORT=3001
   CONTAINER_NAME="app-blue"
@@ -75,7 +69,9 @@ docker run -d --name "$CONTAINER_NAME" --restart=unless-stopped \
   -p 127.0.0.1:${APP_PORT}:3001 \
   -e DATABASE_URL="${DATABASE_URL:-}" \
   -e K6_CLOUD_TOKEN="${K6_CLOUD_TOKEN:-}" \
+  -e JWT_SECRET="${JWT_SECRET:-}" \
   -e PORT=3001 \
+  -e APP_COLOR="${DEPLOY_COLOR}" \
   "$IMAGE_TAG"
 
 # Health-check - ajustado para tu aplicación Node.js en puerto 3001
@@ -103,30 +99,14 @@ if ! docker ps | grep -q "$CONTAINER_NAME"; then
   exit 1
 fi
 
-# Actualizar configuración activa y alternar Nginx
 echo "Actualizando configuración de Nginx..."
-
-# Copiar configuración del color desplegado al active.conf
 if [ "$DEPLOY_COLOR" == "blue" ]; then
-  cp "$BLUE_CONF" "$ACTIVE_LINK"
+  sudo cp "$BLUE_CONF" "/etc/nginx/sites-available/default"
 else
-  cp "$GREEN_CONF" "$ACTIVE_LINK"
+  sudo cp "$GREEN_CONF" "/etc/nginx/sites-available/default"
 fi
-
-# Usar el script de switch de nginx si existe, o hacerlo manualmente
-if [ -f "$NGINX_DIR/switch-nginx.sh" ]; then
-  echo "Ejecutando script de switch de Nginx..."
-  chmod +x "$NGINX_DIR/switch-nginx.sh"
-  "$NGINX_DIR/switch-nginx.sh"
-else
-  echo "Alternando configuración de Nginx manualmente..."
-  # Copiar la configuración activa a nginx
-  sudo cp "$ACTIVE_LINK" "/etc/nginx/sites-available/default"
-  
-  # Test y recarga de nginx
-  sudo nginx -t
-  sudo systemctl reload nginx
-fi
+sudo nginx -t
+sudo systemctl reload nginx
 
 echo "✅ Despliegue Blue-Green completado. Color activo: ${DEPLOY_COLOR}"
 

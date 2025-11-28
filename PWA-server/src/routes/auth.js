@@ -2,6 +2,7 @@ const express = require("express");
 const pool = require("../db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+require('dotenv').config();
 
 const router = express.Router();
 
@@ -52,7 +53,7 @@ router.post("/login", async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id_us, nombre: user.nombre, rol: user.rol },
-      "Emma&Ill3nc0",
+      process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
