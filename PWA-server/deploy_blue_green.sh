@@ -4,26 +4,33 @@ set -euo pipefail
 IMAGE_TAG="${1:-local-build}"
 IMAGE_TAG="$(echo "$IMAGE_TAG" | tr '[:upper:]' '[:lower:]')"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_BASE="$(cd "$SCRIPT_DIR/.." && pwd)"
-NGINX_DIR="$APP_BASE/nginx"
-BLUE_CONF="$NGINX_DIR/confs/proxy.blue.conf"
-GREEN_CONF="$NGINX_DIR/confs/proxy.green.conf"
+REPO_CONF_DIR="$APP_BASE/nginx/confs"
+REPO_UP_BLUE="$REPO_CONF_DIR/upstream.blue.conf"
+REPO_UP_GREEN="$REPO_CONF_DIR/upstream.green.conf"
+UPSTREAM_DIR="/etc/nginx/vps-g"
+UP_BLUE="$UPSTREAM_DIR/upstream.blue.conf"
+UP_GREEN="$UPSTREAM_DIR/upstream.green.conf"
+ACTIVE_LINK="$UPSTREAM_DIR/upstream.active.conf"
 
 echo "Desplegando imagen: $IMAGE_TAG"
 
-# Preflight: ensure nginx files exist in app directory
-if [ ! -f "$BLUE_CONF" ] || [ ! -f "$GREEN_CONF" ]; then
-  echo "ERROR: Missing Nginx configuration files in $NGINX_DIR"
-  echo "Expected: $BLUE_CONF and $GREEN_CONF"
+if [ ! -f "$REPO_UP_BLUE" ] || [ ! -f "$REPO_UP_GREEN" ]; then
+  echo "ERROR: Missing upstream templates in $REPO_CONF_DIR"
+  echo "Expected: $REPO_UP_BLUE and $REPO_UP_GREEN"
   exit 1
 fi
+sudo mkdir -p "$UPSTREAM_DIR"
+sudo cp "$REPO_UP_BLUE" "$UP_BLUE"
+sudo cp "$REPO_UP_GREEN" "$UP_GREEN"
 
 ACTIVE_COLOR="none"
-if sudo test -f "/etc/nginx/sites-available/default"; then
-  if grep -q "127.0.0.1:3001" "/etc/nginx/sites-available/default"; then
+if sudo test -L "$ACTIVE_LINK"; then
+  TARGET="$(sudo readlink -f "$ACTIVE_LINK" || true)"
+  if [[ "$TARGET" == "$UP_BLUE" ]]; then
     ACTIVE_COLOR="blue"
-  elif grep -q "127.0.0.1:3002" "/etc/nginx/sites-available/default"; then
+  elif [[ "$TARGET" == "$UP_GREEN" ]]; then
     ACTIVE_COLOR="green"
   fi
 fi
@@ -120,16 +127,20 @@ if ! docker ps | grep -q "$CONTAINER_NAME"; then
 fi
 
 echo "Actualizando configuración de Nginx..."
-NGINX_TARGET="/etc/nginx/sites-available/default"
-if ! sudo test -d "/etc/nginx/sites-available"; then
-  NGINX_TARGET="/etc/nginx/conf.d/vps-g.conf"
-  sudo mkdir -p "/etc/nginx/conf.d"
-fi
-
-if [ "$DEPLOY_COLOR" == "blue" ]; then
-  sudo cp "$BLUE_CONF" "$NGINX_TARGET"
-else
-  sudo cp "$GREEN_CONF" "$NGINX_TARGET"
+sudo ln -sfn "$([ "$DEPLOY_COLOR" == "blue" ] && echo "$UP_BLUE" || echo "$UP_GREEN")" "$ACTIVE_LINK"
+if ! sudo test -f "/etc/nginx/conf.d/vps-g.conf"; then
+  sudo tee "/etc/nginx/conf.d/vps-g.conf" >/dev/null <<'EOF'
+include /etc/nginx/vps-g/upstream.active.conf;
+server {
+    listen 80 default_server;
+    server_name _;
+    location / {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+EOF
 fi
 sudo nginx -t
 sudo systemctl reload nginx
