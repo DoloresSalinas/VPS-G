@@ -67,8 +67,8 @@ done
 # ---------------------------
 # Cambiar NGINX al nuevo contenedor
 # ---------------------------
-echo "-> Actualizando NGINX para usar puerto $PORT..."
-sudo sed -i 's|proxy_pass http://127\.0\.0\.1:[0-9]\+;.*|proxy_pass http://127.0.0.1:'"$PORT"';|' $NGINX_CONF
+echo "-> Modificando $NGINX_CONF para usar puerto $PORT..."
+sudo sed -i '/proxy_pass/c\    proxy_pass http://127.0.0.1:'"$PORT"';' "$NGINX_CONF"
 sudo nginx -t && sudo systemctl reload nginx
 
 echo "✅ NGINX apunta ahora al color $COLOR"
