@@ -204,3 +204,4 @@ app.get('/reservations', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://127.0.0.1:${PORT} (Color: ${APP_COLOR.toUpperCase()})`);
 });
+

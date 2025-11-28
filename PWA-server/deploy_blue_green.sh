@@ -4,7 +4,9 @@ set -euo pipefail
 IMAGE_TAG="${1:-local-build}"
 IMAGE_TAG="$(echo "$IMAGE_TAG" | tr '[:upper:]' '[:lower:]')"
 
-NGINX_DIR="$HOME/app/nginx"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_BASE="$(cd "$SCRIPT_DIR/.." && pwd)"
+NGINX_DIR="$APP_BASE/nginx"
 BLUE_CONF="$NGINX_DIR/confs/proxy.blue.conf"
 GREEN_CONF="$NGINX_DIR/confs/proxy.green.conf"
 
