@@ -141,10 +141,15 @@ run_root() {
   fi
 }
 
-run_root mkdir -p /etc/nginx/conf.d
-run_root ln -sfn "$ACTIVE_LINK" "/etc/nginx/conf.d/vps-g.conf"
-run_root nginx -t
-run_root systemctl reload nginx
+NGINX_BIN="$(command -v nginx || echo nginx)"
+SYSTEMCTL_BIN="$(command -v systemctl || echo systemctl)"
+LN_BIN="$(command -v ln || echo ln)"
+MK_BIN="$(command -v mkdir || echo mkdir)"
+
+run_root "$MK_BIN" -p /etc/nginx/conf.d
+run_root "$LN_BIN" -sfn "$ACTIVE_LINK" "/etc/nginx/conf.d/vps-g.conf"
+run_root "$NGINX_BIN" -t
+run_root "$SYSTEMCTL_BIN" reload nginx
 
 echo "✅ Despliegue Blue-Green completado. Color activo: ${DEPLOY_COLOR}"
 
