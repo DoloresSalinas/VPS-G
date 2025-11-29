@@ -33,7 +33,7 @@ app.get('/', async (req, res) => {
             <!DOCTYPE html>
             <html lang="es">
             <head>
-                <title>PWA Server Status</title>
+                <title>PWAaa Server Status</title>
                 <style>
                     body { font-family: sans-serif; margin: 40px; }
                     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
